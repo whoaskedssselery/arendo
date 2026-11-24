@@ -1,0 +1,553 @@
+openapi: 3.0.3
+info:
+  title: Arendo API
+  version: 1.0.0
+  description: |
+    REST API сервиса аренды помещений на определённый период.
+    Аутентификация: JWT access-токен (15 мин) в заголовке `Authorization: Bearer <token>` + refresh-токен (30 дней).
+    Роли: `tenant` (арендатор), `owner` (владелец помещений), `admin`.
+    Все даты — ISO 8601 (UTC). Ошибки — единый формат `Error`.
+servers:
+  - url: http://localhost:3000/api/v1
+tags:
+  - { name: Auth, description: Регистрация и вход }
+  - { name: Rooms, description: 'Помещения, фото, календарь' }
+  - { name: Categories, description: Категории помещений }
+  - { name: Bookings, description: Аренды и статусы }
+  - { name: Reviews, description: Отзывы и рейтинг }
+  - { name: Tenants, description: Информация об арендаторах }
+  - { name: Blacklist, description: Чёрный список и штрафы }
+  - { name: Admin, description: Администрирование }
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация (роль tenant или owner)
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RegisterRequest' } } }
+      responses:
+        '201': { description: Создан, content: { application/json: { schema: { $ref: '#/components/schemas/AuthTokens' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход по email и паролю
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthTokens' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Пользователь заблокирован, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Слишком много попыток входа }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление access-токена (ротация refresh-токена)
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [refreshToken], properties: { refreshToken: { type: string } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthTokens' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход (отзыв refresh-токена)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { refreshToken: { type: string } } } } }
+      responses:
+        '204': { description: Выход выполнен }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Список категорий с фото и ориентировочной ценой
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Category' } } } } }
+    post:
+      tags: [Categories]
+      summary: Создать категорию (admin)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CategoryInput' } } }
+      responses:
+        '201': { description: Создана, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /categories/{id}:
+    patch:
+      tags: [Categories]
+      summary: Изменить категорию (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CategoryInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Categories]
+      summary: Удалить категорию (admin); нельзя, если есть помещения
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Удалена }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /rooms:
+    get:
+      tags: [Rooms]
+      summary: Каталог помещений с фильтрами
+      security: []
+      parameters:
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: priceMin, in: query, schema: { type: number } }
+        - { name: priceMax, in: query, schema: { type: number } }
+        - { name: capacity, in: query, description: Минимальная вместимость, schema: { type: integer } }
+        - { name: from, in: query, description: Свободно с (вместе с `to`), schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: q, in: query, description: Поиск по названию/адресу, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, rating_desc, new] } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RoomPage' } } } }
+    post:
+      tags: [Rooms]
+      summary: Создать помещение (owner)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RoomInput' } } }
+      responses:
+        '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /rooms/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Rooms]
+      summary: Карточка помещения (фото, цена, рейтинг)
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Rooms]
+      summary: Изменить помещение (его владелец)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RoomInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Rooms]
+      summary: Деактивировать помещение (не удаляется физически)
+      responses:
+        '204': { description: Деактивировано }
+        '409': { description: Есть активные или ожидающие аренды }
+  /rooms/{id}/photos:
+    post:
+      tags: [Rooms]
+      summary: Загрузить фото (multipart, jpeg/png/webp, до 5 МБ)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, properties: { file: { type: string, format: binary }, isMain: { type: boolean } } }
+      responses:
+        '201': { description: Загружено, content: { application/json: { schema: { $ref: '#/components/schemas/Photo' } } } }
+        '413': { description: Файл слишком большой }
+  /rooms/{id}/photos/{photoId}:
+    delete:
+      tags: [Rooms]
+      summary: Удалить фото
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { name: photoId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Удалено }
+  /rooms/{id}/calendar:
+    get:
+      tags: [Rooms]
+      summary: Календарь занятости (занятые интервалы за период)
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusySlot' } } } } }
+        '422': { $ref: '#/components/responses/Validation' }
+  /rooms/{id}/blocks:
+    post:
+      tags: [Rooms]
+      summary: Закрыть помещение на период (ремонт, уборка)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BlockInput' } } }
+      responses:
+        '201': { description: Создано }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /rooms/{id}/blocks/{blockId}:
+    delete:
+      tags: [Rooms]
+      summary: Снять закрытие
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { name: blockId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Снято }
+  /rooms/{id}/reviews:
+    get:
+      tags: [Reviews]
+      summary: Отзывы о помещении
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Review' } } } } }
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: Мои аренды (арендатор) или аренды моих помещений (owner); admin — все
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/BookingStatus' } }
+        - { name: roomId, in: query, schema: { type: integer } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Booking' } } } } }
+    post:
+      tags: [Bookings]
+      summary: Арендовать помещение на период (tenant)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BookingInput' } } }
+      responses:
+        '201': { description: Создана со статусом pending, content: { application/json: { schema: { $ref: '#/components/schemas/Booking' } } } }
+        '403': { description: Арендатор в чёрном списке, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Период пересекается с другой арендой или закрыт владельцем }
+        '422': { $ref: '#/components/responses/Validation' }
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Аренда с историей статусов
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Booking' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Отменить аренду (завершённую отменить нельзя)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 255 } } } } }
+      responses:
+        '200': { description: Отменена, content: { application/json: { schema: { $ref: '#/components/schemas/Booking' } } } }
+        '409': { description: 'Недопустимый переход статуса, например аренда уже завершена' }
+  /bookings/{id}/complete:
+    post:
+      tags: [Bookings]
+      summary: Принять помещение и завершить аренду (owner). При просрочке создаётся штраф
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { returnedAt: { type: string, format: date-time } } } } }
+      responses:
+        '200': { description: Завершена, content: { application/json: { schema: { type: object, properties: { booking: { $ref: '#/components/schemas/Booking' }, penaltyAmount: { type: number } } } } } }
+        '409': { description: Недопустимый переход статуса }
+  /bookings/{id}/review:
+    post:
+      tags: [Reviews]
+      summary: Отзыв арендатора о помещении (только по завершённой аренде, один на аренду)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewInput' } } }
+      responses:
+        '201': { description: Создан, content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /bookings/{id}/tenant-review:
+    post:
+      tags: [Reviews]
+      summary: Оценка арендатора владельцем (формирует рейтинг клиента)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewInput' } } }
+      responses:
+        '201': { description: Создана }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{id}:
+    get:
+      tags: [Tenants]
+      summary: Карточка арендатора — статистика, рейтинг, просрочки, статус чёрного списка (owner, admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TenantCard' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /tenants:
+    get:
+      tags: [Tenants]
+      summary: Арендаторы помещений владельца (admin — все)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: blacklisted, in: query, schema: { type: boolean } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TenantCard' } } } } }
+  /blacklist:
+    get:
+      tags: [Blacklist]
+      summary: Действующие записи чёрного списка (owner — свои, admin — все)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BlacklistEntry' } } } } }
+    post:
+      tags: [Blacklist]
+      summary: Добавить арендатора (owner — в свой список, admin — глобально)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BlacklistInput' } } }
+      responses:
+        '201': { description: Создана, content: { application/json: { schema: { $ref: '#/components/schemas/BlacklistEntry' } } } }
+  /blacklist/{id}:
+    delete:
+      tags: [Blacklist]
+      summary: Снять ограничение (запись помечается отозванной)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Снято }
+  /penalties:
+    get:
+      tags: [Blacklist]
+      summary: Штрафы (арендатор — свои, owner — по своим помещениям, admin — все)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [unpaid, paid, waived] } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Penalty' } } } } }
+  /penalties/{id}:
+    patch:
+      tags: [Blacklist]
+      summary: Отметить штраф оплаченным или списанным (owner, admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [paid, waived] } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Penalty' } } } }
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Список пользователей (admin)
+      parameters:
+        - { name: role, in: query, schema: { $ref: '#/components/schemas/Role' } }
+        - { name: status, in: query, schema: { type: string, enum: [active, banned] } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/users/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Заблокировать / разблокировать пользователя (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, banned] }, reason: { type: string } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    PageSize: { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+  responses:
+    Unauthorized: { description: Нет или недействительный токен, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Forbidden: { description: Недостаточно прав, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    NotFound: { description: Не найдено, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Conflict: { description: Конфликт данных, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Validation: { description: Ошибка валидации, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  schemas:
+    Error:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer, example: 409 }
+        message: { type: string, example: Период пересекается с другой арендой }
+        errors: { type: array, items: { type: object, properties: { field: { type: string }, message: { type: string } } } }
+    Role: { type: string, enum: [tenant, owner, admin] }
+    BookingStatus: { type: string, enum: [pending, active, completed, cancelled], description: Ожидает / Активно / Завершено / Отменено }
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, role]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        fullName: { type: string }
+        phone: { type: string, example: '+79991234567' }
+        role: { type: string, enum: [tenant, owner] }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties: { email: { type: string, format: email }, password: { type: string } }
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        user: { $ref: '#/components/schemas/User' }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        fullName: { type: string }
+        phone: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/Role' }
+        status: { type: string, enum: [active, banned] }
+        createdAt: { type: string, format: date-time }
+    CategoryInput:
+      type: object
+      required: [name, basePricePerHour]
+      properties: { name: { type: string }, description: { type: string }, photoUrl: { type: string }, basePricePerHour: { type: number } }
+    Category:
+      allOf:
+        - $ref: '#/components/schemas/CategoryInput'
+        - type: object
+          properties: { id: { type: integer } }
+    RoomInput:
+      type: object
+      required: [categoryId, title, address, areaM2, capacity, pricePerHour]
+      properties:
+        categoryId: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        address: { type: string }
+        areaM2: { type: number }
+        capacity: { type: integer }
+        pricePerHour: { type: number }
+        pricePerDay: { type: number, nullable: true }
+    Photo:
+      type: object
+      properties: { id: { type: integer }, url: { type: string }, isMain: { type: boolean }, sortOrder: { type: integer } }
+    Room:
+      allOf:
+        - $ref: '#/components/schemas/RoomInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            ownerId: { type: integer }
+            isActive: { type: boolean }
+            photos: { type: array, items: { $ref: '#/components/schemas/Photo' } }
+            avgRating: { type: number, nullable: true }
+            reviewsCount: { type: integer }
+    RoomPage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Room' } }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    BusySlot:
+      type: object
+      properties:
+        kind: { type: string, enum: [booking, block] }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { type: string, description: pending / active / blocked }
+    BlockInput:
+      type: object
+      required: [startAt, endAt]
+      properties: { startAt: { type: string, format: date-time }, endAt: { type: string, format: date-time }, reason: { type: string } }
+    BookingInput:
+      type: object
+      required: [roomId, startAt, endAt]
+      properties:
+        roomId: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        comment: { type: string, maxLength: 500 }
+    Booking:
+      type: object
+      properties:
+        id: { type: integer }
+        roomId: { type: integer }
+        tenantId: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        totalPrice: { type: number }
+        actualReturnAt: { type: string, format: date-time, nullable: true }
+        isOverdue: { type: boolean, description: "status = active и текущее время позже endAt" }
+        history:
+          type: array
+          items: { type: object, properties: { oldStatus: { type: string, nullable: true }, newStatus: { type: string }, changedAt: { type: string, format: date-time } } }
+    ReviewInput:
+      type: object
+      required: [rating]
+      properties: { rating: { type: integer, minimum: 1, maximum: 5 }, comment: { type: string } }
+    Review:
+      type: object
+      properties:
+        id: { type: integer }
+        bookingId: { type: integer }
+        author: { type: string }
+        rating: { type: integer }
+        comment: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    TenantCard:
+      type: object
+      properties:
+        tenantId: { type: integer }
+        fullName: { type: string }
+        bookingsTotal: { type: integer }
+        completedCount: { type: integer }
+        cancelledCount: { type: integer }
+        lateReturns: { type: integer }
+        unpaidPenalties: { type: number }
+        avgRating: { type: number, nullable: true }
+        isBlacklisted: { type: boolean }
+    BlacklistInput:
+      type: object
+      required: [tenantId, entryType, reason]
+      properties:
+        tenantId: { type: integer }
+        entryType: { type: string, enum: [warning, ban] }
+        reason: { type: string }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    BlacklistEntry:
+      allOf:
+        - $ref: '#/components/schemas/BlacklistInput'
+        - type: object
+          properties: { id: { type: integer }, ownerId: { type: integer, nullable: true }, createdAt: { type: string, format: date-time } }
+    Penalty:
+      type: object
+      properties:
+        id: { type: integer }
+        bookingId: { type: integer }
+        reason: { type: string, enum: [late_return, damage, other] }
+        amount: { type: number }
+        status: { type: string, enum: [unpaid, paid, waived] }
+        createdAt: { type: string, format: date-time }
