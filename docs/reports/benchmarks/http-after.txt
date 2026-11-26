@@ -1,0 +1,67 @@
+Node.js v25.8.0, HTTP/1.1 keep-alive, sequential requests
+Accept-Encoding: gzip. Warmups: 5. Measured responses per scenario: 30.
+
+## catalog-default
+HTTP status: 200
+Wire body bytes: 982
+Decoded body bytes: 8828
+Decoded body SHA-256: c3bd613e1481677cea06f44a4d9c17759b9df337af7425cf51ec58072147779e
+Content-Encoding: gzip
+ETag: W/"227c-/l9gO8/i4mKoXj83W8bDAZ7zGi8"
+Cache-Control: public, no-cache
+Vary: Accept-Encoding
+HTTP median: 1.247 ms
+HTTP p95: 2.541 ms
+Samples (ms): 0.885, 0.923, 0.939, 0.946, 0.956, 0.972, 0.988, 1.018, 1.025, 1.084, 1.088, 1.098, 1.159, 1.159, 1.243, 1.252, 1.252, 1.341, 1.393, 1.404, 1.409, 1.428, 1.526, 1.533, 1.634, 1.717, 1.807, 2.105, 2.541, 2.972
+
+## catalog-100
+HTTP status: 200
+Wire body bytes: 3669
+Decoded body bytes: 43993
+Decoded body SHA-256: 38c61a729ef147e573f8d592e8685b88bcb4a60dc5a36026408f9c58ccb44465
+Content-Encoding: gzip
+ETag: W/"abd9-ONe1oO2PJnpJOqTUpVZVbCYCUZY"
+Cache-Control: public, no-cache
+Vary: Accept-Encoding
+HTTP median: 2.164 ms
+HTTP p95: 2.503 ms
+Samples (ms): 1.742, 1.761, 1.875, 1.899, 1.971, 1.977, 2.005, 2.039, 2.040, 2.072, 2.074, 2.077, 2.081, 2.111, 2.163, 2.165, 2.178, 2.200, 2.209, 2.210, 2.242, 2.250, 2.251, 2.263, 2.267, 2.307, 2.379, 2.445, 2.503, 2.625
+
+## categories
+HTTP status: 200
+Wire body bytes: 351
+Decoded body bytes: 675
+Decoded body SHA-256: fd30e293c626635334f14ed7a5ae34e8bdd8ef4d097f335e57d8f0234f336ed0
+Content-Encoding: gzip
+ETag: W/"2a3-8M5IjNYdz0HusFX/aOGhmMzhjQs"
+Cache-Control: public, no-cache
+Vary: Accept-Encoding
+HTTP median: 0.688 ms
+HTTP p95: 0.949 ms
+Samples (ms): 0.590, 0.596, 0.597, 0.602, 0.607, 0.616, 0.622, 0.622, 0.630, 0.658, 0.659, 0.666, 0.678, 0.686, 0.688, 0.688, 0.692, 0.709, 0.712, 0.727, 0.741, 0.766, 0.775, 0.777, 0.815, 0.816, 0.852, 0.896, 0.949, 0.964
+
+## room-detail
+HTTP status: 200
+Wire body bytes: 464
+Decoded body bytes: 464
+Decoded body SHA-256: 32a53b76550906c74f12947c1f8559572a80cf57e166ceb01d594593e9059e4b
+Content-Encoding: identity
+ETag: W/"1d0-H82hSgdzEss0hZe03vmMuGpZuGQ"
+Cache-Control: public, no-cache
+Vary: Accept-Encoding
+HTTP median: 0.655 ms
+HTTP p95: 0.752 ms
+Samples (ms): 0.567, 0.571, 0.572, 0.582, 0.594, 0.601, 0.602, 0.611, 0.624, 0.634, 0.635, 0.638, 0.648, 0.651, 0.653, 0.657, 0.657, 0.663, 0.673, 0.683, 0.685, 0.710, 0.712, 0.714, 0.731, 0.736, 0.737, 0.744, 0.752, 0.991
+
+## catalog-not-modified
+HTTP status: 304
+Wire body bytes: 0
+Decoded body bytes: 0
+Decoded body SHA-256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Content-Encoding: identity
+ETag: W/"abd9-ONe1oO2PJnpJOqTUpVZVbCYCUZY"
+Cache-Control: public, no-cache
+Vary: Accept-Encoding
+HTTP median: 1.735 ms
+HTTP p95: 2.133 ms
+Samples (ms): 1.378, 1.395, 1.425, 1.429, 1.431, 1.533, 1.537, 1.542, 1.542, 1.583, 1.676, 1.689, 1.697, 1.709, 1.731, 1.739, 1.741, 1.756, 1.798, 1.806, 1.806, 1.810, 1.839, 1.889, 1.938, 1.965, 2.003, 2.030, 2.133, 2.560

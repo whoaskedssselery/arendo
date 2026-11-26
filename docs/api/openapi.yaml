@@ -84,8 +84,16 @@ paths:
       tags: [Categories]
       summary: Список категорий с фото и ориентировочной ценой
       security: []
+      parameters: [{ $ref: '#/components/parameters/IfNoneMatch' }]
       responses:
-        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Category' } } } } }
+        '200':
+          description: OK
+          headers: &publicCacheHeaders
+            ETag: { $ref: '#/components/headers/PublicETag' }
+            Cache-Control: { $ref: '#/components/headers/PublicCacheControl' }
+            Vary: { $ref: '#/components/headers/AcceptEncodingVary' }
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Category' } } } }
+        '304': { $ref: '#/components/responses/NotModified' }
     post:
       tags: [Categories]
       summary: Создать категорию (admin)
@@ -130,8 +138,13 @@ paths:
         - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, rating_desc, new], default: price_asc } }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/IfNoneMatch' }
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RoomPage' } } } }
+        '200':
+          description: OK
+          headers: *publicCacheHeaders
+          content: { application/json: { schema: { $ref: '#/components/schemas/RoomPage' } } }
+        '304': { $ref: '#/components/responses/NotModified' }
         '422': { $ref: '#/components/responses/Validation' }
     post:
       tags: [Rooms]
@@ -150,8 +163,13 @@ paths:
       tags: [Rooms]
       summary: Карточка помещения (фото, цена, рейтинг)
       security: []
+      parameters: [{ $ref: '#/components/parameters/IfNoneMatch' }]
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '200':
+          description: OK
+          headers: *publicCacheHeaders
+          content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } }
+        '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
     patch:
@@ -204,8 +222,13 @@ paths:
         - { $ref: '#/components/parameters/Id' }
         - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
         - { name: to, in: query, required: true, schema: { type: string, format: date-time } }
+        - { $ref: '#/components/parameters/IfNoneMatch' }
       responses:
-        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusySlot' } } } } }
+        '200':
+          description: OK
+          headers: *publicCacheHeaders
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusySlot' } } } }
+        '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
   /rooms/{id}/blocks:
@@ -409,7 +432,18 @@ components:
     Id: { name: id, in: path, required: true, schema: { type: integer } }
     Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
     PageSize: { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    IfNoneMatch: { name: If-None-Match, in: header, description: ETag из предыдущего ответа, schema: { type: string } }
+  headers:
+    PublicETag:
+      description: Слабый ETag текущего JSON-представления
+      schema: { type: string }
+    PublicCacheControl:
+      description: Сохранённый ответ перепроверяется перед использованием
+      schema: { type: string, example: 'public, no-cache' }
+    AcceptEncodingVary:
+      schema: { type: string, example: Accept-Encoding }
   responses:
+    NotModified: { description: Представление не изменилось, headers: *publicCacheHeaders }
     Unauthorized: { description: Нет или недействительный токен, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     Forbidden: { description: Недостаточно прав, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     NotFound: { description: Не найдено, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

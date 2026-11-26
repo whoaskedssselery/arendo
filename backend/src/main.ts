@@ -3,10 +3,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import { parse } from 'yaml';
 import { AppModule } from './app.module';
 import { DatabaseService } from './database/database.service';
+import { publicCacheControl } from './http/public-cache-headers.decorator';
 
 const apiPrefix = 'api/v1';
 
@@ -18,12 +21,21 @@ async function bootstrap(): Promise<void> {
 
   const specPath = resolve(__dirname, '../../docs/api/openapi.yaml');
   const spec = parse(await readFile(specPath, 'utf8')) as OpenAPIObject;
-  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { abortOnError: false });
 
   try {
     await app.get(DatabaseService).checkConnection();
 
     app.setGlobalPrefix(apiPrefix);
+    app.set('etag', 'weak');
+    app.use(`/${apiPrefix}`, compression({
+      threshold: 512,
+      level: 4,
+      filter: (request, response) => response.statusCode === 200
+        && response.getHeader('Cache-Control') === publicCacheControl
+        && compression.filter(request, response),
+    }));
+
     SwaggerModule.setup('api/docs', app, {
       ...spec,
       servers: [{ url: `/${apiPrefix}` }],

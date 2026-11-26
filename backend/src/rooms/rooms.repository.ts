@@ -3,8 +3,14 @@ import { DatabaseService } from '../database/database.service';
 import type { CreateRoomDto, RoomQueryDto, RoomSort, UpdateRoomDto } from './rooms.dto';
 import type { BusySlotRow, RoomPeriod, RoomRow } from './rooms.types';
 
-const roomColumns = `r.id, r.owner_id, r.category_id, r.title, r.description, r.address,
-  r.area_m2, r.capacity, r.price_per_hour, r.price_per_day, r.is_active`;
+const roomFieldNames = [
+  'id', 'owner_id', 'category_id', 'title', 'description', 'address',
+  'area_m2', 'capacity', 'price_per_hour', 'price_per_day', 'is_active',
+];
+
+function roomColumns(alias: 'r' | 'filtered' | 'page'): string {
+  return roomFieldNames.map((field) => `${alias}.${field}`).join(', ');
+}
 
 const sortSql: Record<RoomSort, string> = {
   price_asc: 'price_per_hour ASC, id ASC',
@@ -33,19 +39,23 @@ export class RoomsRepository {
     const offset = BigInt(page - 1) * BigInt(pageSize);
     // Only rating order needs review aggregates before the page is selected.
     const sortByRating = query.sort === 'rating_desc';
+    const sortByNewest = query.sort === 'new';
+    const sortTimestamp = sortByNewest ? ', created_at' : '';
     const rankColumns = sortByRating ? ', rating.avg_rating, COALESCE(rating.reviews_count, 0) AS reviews_count' : '';
     const rankJoin = sortByRating ? `LEFT JOIN (
       SELECT rv.room_id, ${ratingAggregates}
       FROM reviews AS rv GROUP BY rv.room_id
     ) AS rating ON rating.room_id = r.id` : '';
-    const pageRatingColumns = sortByRating ? '' : ', rating.avg_rating, rating.reviews_count';
+    const ratingColumns = sortByRating ? 'page.avg_rating, page.reviews_count' : 'rating.avg_rating, rating.reviews_count';
     const pageRatingJoin = sortByRating ? '' : `CROSS JOIN LATERAL (
       SELECT ${ratingAggregates} FROM reviews AS rv WHERE rv.room_id = page.id
     ) AS rating`;
+    // created_at is needed for sorting by newest, but is outside the response projection.
+    const item = sortByNewest ? "to_jsonb(enriched) - 'created_at'" : 'enriched';
 
     const { rows } = await this.database.pool.query<{ total: string; items: RoomRow[] }>(
       `WITH filtered AS NOT MATERIALIZED (
-         SELECT ${roomColumns}, r.created_at${rankColumns}
+         SELECT ${roomColumns('r')}${sortTimestamp}${rankColumns}
          FROM rooms AS r
          ${rankJoin}
          WHERE r.is_active
@@ -57,17 +67,17 @@ export class RoomsRepository {
            AND ($7::text IS NULL OR strpos(lower(r.title), lower($7)) > 0
                                 OR strpos(lower(r.address), lower($7)) > 0)
        ), page AS (
-         SELECT filtered.*
+         SELECT ${roomColumns('filtered')}${sortTimestamp}${sortByRating ? ', avg_rating, reviews_count' : ''}
          FROM filtered
          ORDER BY ${orderBy}
          LIMIT $8 OFFSET $9
        ), enriched AS (
-         SELECT page.*, ${roomPhotos('page.id')}${pageRatingColumns}
+         SELECT ${roomColumns('page')}${sortTimestamp}, ${roomPhotos('page.id')}, ${ratingColumns}
          FROM page
          ${pageRatingJoin}
        )
        SELECT (SELECT count(*) FROM filtered) AS total,
-              COALESCE(jsonb_agg(enriched ORDER BY ${orderBy}), '[]'::jsonb) AS items
+              COALESCE(jsonb_agg(${item} ORDER BY ${orderBy}), '[]'::jsonb) AS items
        FROM enriched`,
       [query.categoryId, query.priceMin, query.priceMax, query.capacity,
         period?.[0], period?.[1], query.q || null, pageSize, offset.toString()],
@@ -77,7 +87,7 @@ export class RoomsRepository {
 
   async findPublicRoom(id: number) {
     const { rows } = await this.database.pool.query<RoomRow>(
-      `SELECT ${roomColumns}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
+      `SELECT ${roomColumns('r')}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
        FROM rooms AS r
        JOIN v_room_rating AS rating ON rating.room_id = r.id
        WHERE r.id = $1 AND r.is_active`,
@@ -104,7 +114,7 @@ export class RoomsRepository {
          owner_id, category_id, title, description, address, area_m2, capacity, price_per_hour, price_per_day
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING ${roomColumns}, NULL AS avg_rating, 0 AS reviews_count, '[]'::jsonb AS photos`,
+       RETURNING ${roomColumns('r')}, NULL AS avg_rating, 0 AS reviews_count, '[]'::jsonb AS photos`,
       [ownerId, room.categoryId, room.title, room.description, room.address,
         room.areaM2, room.capacity, room.pricePerHour, room.pricePerDay],
     );
@@ -124,9 +134,9 @@ export class RoomsRepository {
              price_per_hour = COALESCE($9, r.price_per_hour),
              price_per_day = CASE WHEN $11 THEN $10::numeric ELSE r.price_per_day END
          WHERE r.id = $1 AND r.owner_id = $2 AND r.is_active
-         RETURNING ${roomColumns}
+         RETURNING ${roomColumns('r')}
        )
-       SELECT ${roomColumns}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
+       SELECT ${roomColumns('r')}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
        FROM updated AS r JOIN v_room_rating AS rating ON rating.room_id = r.id`,
       [id, ownerId, room.categoryId, room.title, room.description, room.address, room.areaM2,
         room.capacity, room.pricePerHour, room.pricePerDay, room.pricePerDay !== undefined],
