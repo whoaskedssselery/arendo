@@ -1,0 +1,43 @@
+import 'reflect-metadata';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { Logger } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { parse } from 'yaml';
+import { AppModule } from './app.module';
+import { DatabaseService } from './database/database.service';
+
+const apiPrefix = 'api/v1';
+
+async function bootstrap(): Promise<void> {
+  const port = Number(process.env.PORT ?? 3000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535.');
+  }
+
+  const specPath = resolve(__dirname, '../../docs/api/openapi.yaml');
+  const spec = parse(await readFile(specPath, 'utf8')) as OpenAPIObject;
+  const app = await NestFactory.create(AppModule, { abortOnError: false });
+
+  try {
+    await app.get(DatabaseService).checkConnection();
+
+    app.setGlobalPrefix(apiPrefix);
+    SwaggerModule.setup('api/docs', app, {
+      ...spec,
+      servers: [{ url: `/${apiPrefix}` }],
+    });
+
+    app.enableShutdownHooks();
+    await app.listen(port);
+  } catch (error) {
+    await app.close();
+    throw error;
+  }
+}
+
+void bootstrap().catch((error: Error) => {
+  Logger.error(error.message, 'Bootstrap');
+  process.exitCode = 1;
+});

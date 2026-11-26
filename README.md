@@ -12,13 +12,14 @@
 | Схема БД, бизнес-логика в БД, тестовые данные | готово, 34 автотеста |
 | Спецификация API (OpenAPI, 36 эндпоинтов) | готово |
 | Макеты экранов | делает фронтенд |
-| Серверная часть NestJS | не начата |
+| Серверная часть NestJS | каркас, PostgreSQL, Swagger UI и модуль авторизации |
 | Клиентская часть React | не начата |
 
 ## Структура
 
 ```
 db/                 SQL-скрипты (01 схема, 02 логика, 03 данные, 04 запросы) и автотесты
+backend/            NestJS-сервер и инициализация базы
 docs/tz/            Техническое задание
 docs/db/            Описание БД, ER-диаграмма, статусы
 docs/api/           openapi.yaml и список эндпоинтов
@@ -28,6 +29,39 @@ docs/qa/            Ответы на вопросы кафедры
 ```
 
 ## Запуск
+
+### Backend
+
+Нужны Node.js 22.9+ и запущенный PostgreSQL 15+. Создайте пустую базу
+`arendo`. В каталоге `backend/` создайте `.env` из `.env.example` и укажите
+строку подключения в `DATABASE_URL` и секрет подписи в `JWT_ACCESS_SECRET`.
+Для генерации случайного секрета можно выполнить
+`node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))'`.
+Переменная `PORT` задаёт HTTP-порт (по умолчанию 3000).
+
+Из каталога `backend/` выполните:
+
+```bash
+npm ci
+npm run build
+npm run db:init
+npm start
+```
+
+`db:init` запускается один раз для пустой базы. Команда применяет схему,
+бизнес-логику и демонстрационные данные в одной транзакции. При последующих
+запусках достаточно `npm start`.
+
+Swagger UI доступен по адресу [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+и показывает контракт из [docs/api/openapi.yaml](docs/api/openapi.yaml).
+
+Для проверки авторизации зарегистрируйте нового арендатора или владельца через
+`POST /api/v1/auth/register`. У демонстрационных аккаунтов в SQL-заполнении
+хэши паролей служат заглушками. `POST /api/v1/auth/login` принимает до 5
+запросов с одного IP за 60 секунд на экземпляр сервера. Выход без тела запроса
+отзывает сессию из access-токена.
+
+### База данных
 
 Тесты БД (PostgreSQL-сервер не нужен, используется PGlite):
 
@@ -39,5 +73,5 @@ cd db/tests && npm i && npm test
 
 ```bash
 createdb arendo
-psql arendo -f db/01_schema.sql -f db/02_logic.sql -f db/03_seed.sql
+psql arendo -v ON_ERROR_STOP=1 --single-transaction -f db/01_schema.sql -f db/02_logic.sql -f db/03_seed.sql
 ```

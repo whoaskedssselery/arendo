@@ -45,6 +45,7 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthTokens' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { description: Пользователь заблокирован, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { $ref: '#/components/responses/Validation' }
         '429': { description: Слишком много попыток входа }
   /auth/refresh:
     post:
@@ -57,14 +58,19 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthTokens' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Validation' }
   /auth/logout:
     post:
       tags: [Auth]
       summary: Выход (отзыв refresh-токена)
+      description: При отсутствии refreshToken отзывается сессия текущего access-токена.
       requestBody:
         content: { application/json: { schema: { type: object, properties: { refreshToken: { type: string } } } } }
       responses:
         '204': { description: Выход выполнен }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
   /auth/me:
     get:
       tags: [Auth]
@@ -72,6 +78,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /categories:
     get:
       tags: [Categories]
@@ -403,10 +410,10 @@ components:
       type: object
       required: [email, password, fullName, role]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
-        fullName: { type: string }
-        phone: { type: string, example: '+79991234567' }
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, minLength: 8, description: Максимум 72 байта в UTF-8 }
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        phone: { type: string, pattern: '^\+?[0-9]{10,15}$', example: '+79991234567' }
         role: { type: string, enum: [tenant, owner] }
     LoginRequest:
       type: object
