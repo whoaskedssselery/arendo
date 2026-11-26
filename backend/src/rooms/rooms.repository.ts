@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import type { CreateRoomDto, RoomQueryDto, RoomSort } from './rooms.dto';
+import type { CreateRoomDto, RoomQueryDto, RoomSort, UpdateRoomDto } from './rooms.dto';
 import type { BusySlotRow, RoomPeriod, RoomRow } from './rooms.types';
 
 const roomColumns = `r.id, r.owner_id, r.category_id, r.title, r.description, r.address,
@@ -109,5 +109,28 @@ export class RoomsRepository {
         room.areaM2, room.capacity, room.pricePerHour, room.pricePerDay],
     );
     return rows[0];
+  }
+
+  async update(id: number, ownerId: string, room: UpdateRoomDto) {
+    const { rows } = await this.database.pool.query<RoomRow>(
+      `WITH updated AS (
+         UPDATE rooms AS r
+         SET category_id = COALESCE($3, r.category_id),
+             title = COALESCE($4, r.title),
+             description = COALESCE($5, r.description),
+             address = COALESCE($6, r.address),
+             area_m2 = COALESCE($7, r.area_m2),
+             capacity = COALESCE($8, r.capacity),
+             price_per_hour = COALESCE($9, r.price_per_hour),
+             price_per_day = CASE WHEN $11 THEN $10::numeric ELSE r.price_per_day END
+         WHERE r.id = $1 AND r.owner_id = $2 AND r.is_active
+         RETURNING ${roomColumns}
+       )
+       SELECT ${roomColumns}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
+       FROM updated AS r JOIN v_room_rating AS rating ON rating.room_id = r.id`,
+      [id, ownerId, room.categoryId, room.title, room.description, room.address, room.areaM2,
+        room.capacity, room.pricePerHour, room.pricePerDay, room.pricePerDay !== undefined],
+    );
+    return rows.at(0);
   }
 }

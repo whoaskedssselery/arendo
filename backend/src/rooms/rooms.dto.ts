@@ -1,3 +1,4 @@
+import { PartialType } from '@nestjs/swagger';
 import { Transform, type TransformFnParams } from 'class-transformer';
 import {
   IsIn,
@@ -136,3 +137,5 @@ export class CreateRoomDto {
   @Max(99999999.99)
   pricePerDay?: number | null;
 }
+
+export class UpdateRoomDto extends PartialType(CreateRoomDto, { skipNullProperties: false }) {}

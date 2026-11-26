@@ -1,0 +1,38 @@
+PostgreSQL 15.20 (Debian 15.20-1.pgdg13+1)
+Case: public cache miss then hit for categories, catalog and room.
+[PublicCache] MISS categories
+[PublicCache] HIT categories
+[PublicCache] MISS catalog
+[PublicCache] HIT catalog
+[PublicCache] MISS catalog
+[PublicCache] MISS room
+[PublicCache] HIT room
+Case: room creation invalidates catalog. Price update invalidates room and catalog.
+[PublicCache] MISS catalog
+[PublicCache] MISS catalog
+[PublicCache] MISS room
+[PublicCache] HIT room
+[PublicCache] MISS room
+[PublicCache] MISS catalog
+[PublicCache] MISS catalog
+[PublicCache] HIT categories
+Case: booking and cancellation invalidate calendar and availability.
+[PublicCache] MISS calendar
+[PublicCache] HIT calendar
+[PublicCache] MISS availability
+[PublicCache] HIT availability
+[PublicCache] MISS calendar
+[PublicCache] MISS availability
+[PublicCache] HIT catalog
+[PublicCache] MISS calendar
+[PublicCache] MISS availability
+Case: status synchronization and completion invalidate a warm calendar.
+[PublicCache] MISS calendar
+[PublicCache] HIT calendar
+[PublicCache] MISS calendar
+[PublicCache] MISS calendar
+Case: calendar entry expires after 15 seconds.
+[PublicCache] HIT calendar
+[PublicCache] MISS calendar
+[PublicCache] HIT categories
+PASS: cache hits, TTL, validation, room updates and all booking invalidations.

@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { UserRow } from '../auth/auth.types';
+import { PublicCache } from '../cache/public-cache.service';
 import type { CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
 import { rethrowBookingError } from './bookings.errors';
 import { BookingsRepository, type BookingTransaction } from './bookings.repository';
@@ -7,7 +8,10 @@ import { bookingResponse } from './bookings.types';
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly repository: BookingsRepository) {}
+  constructor(
+    private readonly repository: BookingsRepository,
+    private readonly cache: PublicCache,
+  ) {}
 
   async create(tenantId: string, input: CreateBookingDto) {
     const start = new Date(input.startAt);
@@ -70,7 +74,9 @@ export class BookingsService {
 
   private async change<T>(actorId: string, run: (transaction: BookingTransaction) => Promise<T>): Promise<T> {
     try {
-      return await this.repository.transactionAs(actorId, run);
+      const result = await this.repository.transactionAs(actorId, run);
+      this.cache.invalidate('availability', 'calendar');
+      return result;
     } catch (error) {
       rethrowBookingError(error);
     }

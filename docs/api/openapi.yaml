@@ -156,13 +156,16 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
     patch:
       tags: [Rooms]
-      summary: Изменить помещение (его владелец)
+      summary: Частично изменить помещение (его владелец)
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/RoomInput' } } }
+        content: { application/json: { schema: { $ref: '#/components/schemas/RoomPatch' } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
     delete:
       tags: [Rooms]
       summary: Деактивировать помещение (не удаляется физически)
@@ -460,9 +463,8 @@ components:
         - $ref: '#/components/schemas/CategoryInput'
         - type: object
           properties: { id: { type: integer } }
-    RoomInput:
+    RoomFields:
       type: object
-      required: [categoryId, title, address, areaM2, capacity, pricePerHour]
       properties:
         categoryId: { type: integer, minimum: 1 }
         title: { type: string, minLength: 1, maxLength: 150 }
@@ -472,6 +474,16 @@ components:
         capacity: { type: integer, minimum: 1, maximum: 2147483647 }
         pricePerHour: { type: number, minimum: 0.01, maximum: 99999999.99 }
         pricePerDay: { type: number, minimum: 0.01, maximum: 99999999.99, nullable: true }
+    RoomInput:
+      allOf:
+        - $ref: '#/components/schemas/RoomFields'
+        - type: object
+          required: [categoryId, title, address, areaM2, capacity, pricePerHour]
+    RoomPatch:
+      allOf:
+        - $ref: '#/components/schemas/RoomFields'
+        - type: object
+          minProperties: 1
     Photo:
       type: object
       properties: { id: { type: integer }, url: { type: string }, isMain: { type: boolean }, sortOrder: { type: integer } }

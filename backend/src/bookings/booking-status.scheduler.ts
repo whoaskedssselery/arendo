@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { PublicCache } from '../cache/public-cache.service';
 import { BookingsRepository } from './bookings.repository';
 
 @Injectable()
@@ -7,7 +8,10 @@ export class BookingStatusScheduler implements OnApplicationBootstrap, OnModuleD
   private timer?: NodeJS.Timeout;
   private running?: Promise<void>;
 
-  constructor(private readonly repository: BookingsRepository) {}
+  constructor(
+    private readonly repository: BookingsRepository,
+    private readonly cache: PublicCache,
+  ) {}
 
   onApplicationBootstrap(): void {
     this.run();
@@ -28,7 +32,10 @@ export class BookingStatusScheduler implements OnApplicationBootstrap, OnModuleD
   private async synchronize(): Promise<void> {
     try {
       const updated = await this.repository.syncStatuses();
-      if (updated > 0) this.logger.log(`Activated ${updated} booking(s)`);
+      if (updated > 0) {
+        this.cache.invalidate('calendar');
+        this.logger.log(`Activated ${updated} booking(s)`);
+      }
     } catch (error) {
       this.logger.error('Could not synchronize booking statuses.', error instanceof Error ? error.stack : error);
     }
