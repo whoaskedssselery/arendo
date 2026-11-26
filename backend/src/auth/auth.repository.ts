@@ -7,18 +7,22 @@ import type { AccessClaims, UserRow } from './auth.types';
 const userColumns = 'u.id, u.email, u.full_name, u.phone, u.role, u.status, u.created_at';
 const refreshLifetime = "interval '720 hours'";
 
+async function insertSession(db: Pool | PoolClient, userId: string, tokenHash: string) {
+  const { rows } = await db.query<{ id: string }>(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     SELECT id, $2, now() + ${refreshLifetime} FROM users WHERE id = $1 AND status = 'active'
+     RETURNING id`,
+    [userId, tokenHash],
+  );
+  return rows.at(0)?.id;
+}
+
 @Injectable()
 export class AuthRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  async createUser(client: PoolClient, input: RegisterDto, passwordHash: string): Promise<UserRow> {
-    const { rows } = await client.query<UserRow>(
-      `INSERT INTO users AS u (email, password_hash, full_name, phone, role)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING ${userColumns}`,
-      [input.email, passwordHash, input.fullName, input.phone ?? null, input.role],
-    );
-    return rows[0];
+  transaction<T>(run: (transaction: AuthTransaction) => Promise<T>): Promise<T> {
+    return this.database.transaction((client) => run(new AuthTransaction(client)));
   }
 
   async findUserByEmail(email: string) {
@@ -29,31 +33,8 @@ export class AuthRepository {
     return rows.at(0);
   }
 
-  async createSession(userId: string, tokenHash: string, db: Pool | PoolClient = this.database.pool) {
-    const { rows } = await db.query<{ id: string }>(
-      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-       SELECT id, $2, now() + ${refreshLifetime} FROM users WHERE id = $1 AND status = 'active'
-       RETURNING id`,
-      [userId, tokenHash],
-    );
-    return rows.at(0)?.id;
-  }
-
-  async rotateSession(client: PoolClient, oldHash: string, newHash: string) {
-    const { rows } = await client.query<UserRow & { session_id: string }>(
-      `WITH rotated AS (
-         UPDATE refresh_tokens AS rt
-         SET token_hash = $2, expires_at = now() + ${refreshLifetime}
-         FROM users AS u
-         WHERE rt.token_hash = $1 AND rt.revoked_at IS NULL AND rt.expires_at > now()
-           AND u.id = rt.user_id AND u.status = 'active'
-         RETURNING rt.id, rt.user_id
-       )
-       SELECT ${userColumns}, rotated.id AS session_id
-       FROM rotated JOIN users AS u ON u.id = rotated.user_id`,
-      [oldHash, newHash],
-    );
-    return rows.at(0);
+  createSession(userId: string, tokenHash: string) {
+    return insertSession(this.database.pool, userId, tokenHash);
   }
 
   async findSessionUser({ sub, sid }: AccessClaims) {
@@ -74,5 +55,40 @@ export class AuthRepository {
          AND (($3::text IS NULL AND id = $2) OR token_hash = $3)`,
       [userId, sessionId, tokenHash],
     );
+  }
+}
+
+class AuthTransaction {
+  constructor(private readonly client: PoolClient) {}
+
+  async createUser(input: RegisterDto, passwordHash: string): Promise<UserRow> {
+    const { rows } = await this.client.query<UserRow>(
+      `INSERT INTO users AS u (email, password_hash, full_name, phone, role)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING ${userColumns}`,
+      [input.email, passwordHash, input.fullName, input.phone ?? null, input.role],
+    );
+    return rows[0];
+  }
+
+  createSession(userId: string, tokenHash: string) {
+    return insertSession(this.client, userId, tokenHash);
+  }
+
+  async rotateSession(oldHash: string, newHash: string) {
+    const { rows } = await this.client.query<UserRow & { session_id: string }>(
+      `WITH rotated AS (
+         UPDATE refresh_tokens AS rt
+         SET token_hash = $2, expires_at = now() + ${refreshLifetime}
+         FROM users AS u
+         WHERE rt.token_hash = $1 AND rt.revoked_at IS NULL AND rt.expires_at > now()
+           AND u.id = rt.user_id AND u.status = 'active'
+         RETURNING rt.id, rt.user_id
+       )
+       SELECT ${userColumns}, rotated.id AS session_id
+       FROM rotated JOIN users AS u ON u.id = rotated.user_id`,
+      [oldHash, newHash],
+    );
+    return rows.at(0);
   }
 }

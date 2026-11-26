@@ -1,9 +1,8 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import type { PoolClient } from 'pg';
 import type { UserRow } from '../auth/auth.types';
 import type { CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
 import { rethrowBookingError } from './bookings.errors';
-import { BookingsRepository } from './bookings.repository';
+import { BookingsRepository, type BookingTransaction } from './bookings.repository';
 import { bookingResponse } from './bookings.types';
 
 @Injectable()
@@ -20,16 +19,16 @@ export class BookingsService {
       throw new UnprocessableEntityException('The booking cannot start in the past.');
     }
 
-    return this.change(tenantId, async (client) => {
-      const id = await this.repository.insert(client, tenantId, input.roomId, start, end, input.comment);
+    return this.change(tenantId, async (transaction) => {
+      const id = await transaction.insert(tenantId, input.roomId, start, end, input.comment);
       if (!id) throw new UnprocessableEntityException('Room not found.');
-      return bookingResponse(await this.repository.findUpdated(client, id));
+      return bookingResponse(await transaction.findUpdated(id));
     });
   }
 
   async cancel(id: number, actor: UserRow, { reason }: CancelBookingDto) {
-    return this.change(actor.id, async (client) => {
-      const booking = await this.target(client, id, actor);
+    return this.change(actor.id, async (transaction) => {
+      const booking = await this.target(transaction, id, actor);
       if (booking.status === 'cancelled' || booking.status === 'completed') {
         throw new ConflictException('A closed booking cannot be cancelled.');
       }
@@ -40,28 +39,27 @@ export class BookingsService {
         throw new ForbiddenException('An owner can only cancel an active booking.');
       }
 
-      await this.repository.cancel(client, id, reason);
-      return bookingResponse(await this.repository.findUpdated(client, id));
+      await transaction.cancel(id, reason);
+      return bookingResponse(await transaction.findUpdated(id));
     });
   }
 
   async complete(id: number, actor: UserRow, input: CompleteBookingDto) {
     const returnedAt = input.returnedAt === undefined ? undefined : new Date(input.returnedAt);
-    return this.change(actor.id, async (client) => {
-      const booking = await this.target(client, id, actor);
+    return this.change(actor.id, async (transaction) => {
+      const booking = await this.target(transaction, id, actor);
       if (booking.status !== 'active') throw new ConflictException('Only an active booking can be completed.');
       if (returnedAt && !(returnedAt >= booking.start_at && returnedAt <= booking.db_now)) {
         throw new UnprocessableEntityException('The return time must be between the start of the booking and now.');
       }
 
-      await this.repository.lockTenant(client, booking.tenant_id);
-      const penaltyAmount = await this.repository.complete(client, id, returnedAt);
-      return { booking: bookingResponse(await this.repository.findUpdated(client, id)), penaltyAmount };
+      const penaltyAmount = await transaction.complete(id, booking.tenant_id, returnedAt);
+      return { booking: bookingResponse(await transaction.findUpdated(id)), penaltyAmount };
     });
   }
 
-  private async target(client: PoolClient, id: number, actor: UserRow) {
-    const booking = await this.repository.lock(client, id);
+  private async target(transaction: BookingTransaction, id: number, actor: UserRow) {
+    const booking = await transaction.lock(id);
     if (!booking) throw new NotFoundException('Booking not found.');
     if ((actor.role === 'tenant' && actor.id !== booking.tenant_id)
       || (actor.role === 'owner' && actor.id !== booking.owner_id)) {
@@ -70,7 +68,7 @@ export class BookingsService {
     return booking;
   }
 
-  private async change<T>(actorId: string, run: (client: PoolClient) => Promise<T>): Promise<T> {
+  private async change<T>(actorId: string, run: (transaction: BookingTransaction) => Promise<T>): Promise<T> {
     try {
       return await this.repository.transactionAs(actorId, run);
     } catch (error) {

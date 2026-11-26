@@ -1,0 +1,17 @@
+# Паттерны проектирования в бэкенде Arendo
+
+Материал для защиты и отчёта `Patterns_Report`. В NestJS модули разделены по предметным областям. REST-контроллеры принимают запросы, сервисы управляют бизнес-сценариями, репозитории выполняют операции с PostgreSQL.
+
+| Паттерн или подход | Как применяется | Где показать в коде |
+| --- | --- | --- |
+| MVC для REST API | Контроллер связывает HTTP-маршрут с бизнес-сценарием. Входной DTO задаёт правила валидации. Сервис и репозиторий работают с данными предметной области, а функция `roomResponse` или `bookingResponse` формирует представление для JSON-ответа. | [RoomsController](../../backend/src/rooms/rooms.controller.ts), [DTO помещений](../../backend/src/rooms/rooms.dto.ts), [RoomsService](../../backend/src/rooms/rooms.service.ts), [roomResponse](../../backend/src/rooms/rooms.types.ts) |
+| Модульность NestJS | Каждый модуль регистрирует контроллер, сервис и репозиторий своей области. Модули помещений и аренд импортируют AuthModule и используют общие проверки токена и роли. | [AppModule](../../backend/src/app.module.ts), [AuthModule](../../backend/src/auth/auth.module.ts), [RoomsModule](../../backend/src/rooms/rooms.module.ts), [BookingsModule](../../backend/src/bookings/bookings.module.ts) |
+| Singleton через DI | В контексте одного приложения NestJS экземпляры сервисов и репозиториев с областью видимости по умолчанию создаются один раз. `DatabaseModule` экспортирует один `DatabaseService`. Его пул обслуживает запросы разных модулей и закрывается при остановке приложения. | [DatabaseModule](../../backend/src/database/database.module.ts), [DatabaseService](../../backend/src/database/database.service.ts), [области видимости NestJS](https://docs.nestjs.com/fundamentals/injection-scopes) |
+| Singleton для клиента кэша | `AppModule` один раз регистрирует глобальный `CacheModule`. Токен `CACHE_MANAGER` даёт доступ к одному клиенту с хранилищем в памяти процесса. Ключи и TTL каталога, карточки и календаря предусмотрены в задаче №10. | [AppModule](../../backend/src/app.module.ts), [документация CacheModule](https://docs.nestjs.com/techniques/caching), [задача №10](https://github.com/whoaskedssselery/arendo/issues/10) |
+| Repository | SQL и соединение транзакции находятся внутри слоя репозиториев. Сервисы вызывают операции предметной области. Например, `AuthRepository.transaction` передаёт сервису методы регистрации и ротации, а `BookingsRepository.transactionAs` добавляет пользователя в контекст транзакции для истории статусов. | [AuthRepository](../../backend/src/auth/auth.repository.ts), [RoomsRepository](../../backend/src/rooms/rooms.repository.ts), [BookingsRepository](../../backend/src/bookings/bookings.repository.ts) |
+
+## Пример для защиты
+
+1. Открыть `POST /api/v1/bookings/{id}/complete`. Контроллер проверяет роль и принимает DTO фактического возврата. [BookingsController](../../backend/src/bookings/bookings.controller.ts)
+2. Показать, как `BookingsService.complete` проверяет доступ к помещению, статус аренды и время возврата. Репозиторий выполняет блокировки и вызывает SQL-функцию `fn_complete_booking` в той же транзакции. [BookingsService](../../backend/src/bookings/bookings.service.ts), [BookingsRepository](../../backend/src/bookings/bookings.repository.ts)
+3. Показать результат сценария в Swagger. Ответ содержит обновлённую аренду и сумму штрафа. Из двух одновременных запросов к одной аренде один завершает её, другой получает `409`. [Контракт API](../api/openapi.yaml)
