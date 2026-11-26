@@ -120,18 +120,19 @@ paths:
       summary: Каталог помещений с фильтрами
       security: []
       parameters:
-        - { name: categoryId, in: query, schema: { type: integer } }
-        - { name: priceMin, in: query, schema: { type: number } }
-        - { name: priceMax, in: query, schema: { type: number } }
-        - { name: capacity, in: query, description: Минимальная вместимость, schema: { type: integer } }
+        - { name: categoryId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: priceMin, in: query, description: Минимальная цена за час, schema: { type: number, minimum: 0 } }
+        - { name: priceMax, in: query, description: Максимальная цена за час, schema: { type: number, minimum: 0 } }
+        - { name: capacity, in: query, description: Минимальная вместимость, schema: { type: integer, minimum: 1, maximum: 2147483647 } }
         - { name: from, in: query, description: Свободно с (вместе с `to`), schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: q, in: query, description: Поиск по названию/адресу, schema: { type: string } }
-        - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, rating_desc, new] } }
+        - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, rating_desc, new], default: price_asc } }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RoomPage' } } } }
+        '422': { $ref: '#/components/responses/Validation' }
     post:
       tags: [Rooms]
       summary: Создать помещение (owner)
@@ -140,6 +141,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/RoomInput' } } }
       responses:
         '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
   /rooms/{id}:
@@ -151,6 +153,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Room' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
     patch:
       tags: [Rooms]
       summary: Изменить помещение (его владелец)
@@ -192,6 +195,7 @@ paths:
     get:
       tags: [Rooms]
       summary: Календарь занятости (занятые интервалы за период)
+      description: Возвращает интервалы, пересекающие запрошенный период, с их фактическими границами.
       security: []
       parameters:
         - { $ref: '#/components/parameters/Id' }
@@ -199,6 +203,7 @@ paths:
         - { name: to, in: query, required: true, schema: { type: string, format: date-time } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusySlot' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
   /rooms/{id}/blocks:
     post:
@@ -448,14 +453,14 @@ components:
       type: object
       required: [categoryId, title, address, areaM2, capacity, pricePerHour]
       properties:
-        categoryId: { type: integer }
-        title: { type: string }
+        categoryId: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 1, maxLength: 150 }
         description: { type: string }
-        address: { type: string }
-        areaM2: { type: number }
-        capacity: { type: integer }
-        pricePerHour: { type: number }
-        pricePerDay: { type: number, nullable: true }
+        address: { type: string, minLength: 1, maxLength: 255 }
+        areaM2: { type: number, minimum: 0.01, maximum: 999999.99 }
+        capacity: { type: integer, minimum: 1, maximum: 2147483647 }
+        pricePerHour: { type: number, minimum: 0.01, maximum: 99999999.99 }
+        pricePerDay: { type: number, minimum: 0.01, maximum: 99999999.99, nullable: true }
     Photo:
       type: object
       properties: { id: { type: integer }, url: { type: string }, isMain: { type: boolean }, sortOrder: { type: integer } }
