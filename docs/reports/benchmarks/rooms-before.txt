@@ -1,0 +1,219 @@
+PostgreSQL 15.20 (Debian 15.20-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+Slow query threshold: 10ms
+Rows: 12004 rooms, 120006 bookings, 24005 photos, 8574 reviews
+Warmups: 3. Measured executions per query: 20.
+
+## catalog-default
+Execution median: 17.774 ms
+Execution p95: 18.953 ms
+Result SHA-256: a5ccf7d05c5f24b88402c0b358fae8537cdf249bd3e87ccf8529c39cb30ba992
+Sample execution times (ms): 17.051, 17.151, 17.324, 17.358, 17.384, 17.535, 17.602, 17.675, 17.684, 17.727, 17.821, 18.074, 18.075, 18.082, 18.174, 18.401, 18.523, 18.659, 18.953, 19.305
+Aggregate  (cost=2801.83..2801.84 rows=1 width=40) (actual rows=1 loops=1)
+  Buffers: shared hit=746
+  CTE filtered
+    ->  Hash Join  (cost=1304.53..1736.09 rows=12004 width=181) (actual rows=12004 loops=1)
+          Hash Cond: (r.id = rating.room_id)
+          Buffers: shared hit=666
+          ->  Seq Scan on rooms r  (cost=0.00..400.04 rows=12004 width=141) (actual rows=12004 loops=1)
+                Filter: is_active
+                Buffers: shared hit=280
+          ->  Hash  (cost=1154.48..1154.48 rows=12004 width=48) (actual rows=12004 loops=1)
+                Buckets: 16384  Batches: 1  Memory Usage: 758kB
+                Buffers: shared hit=386
+                ->  Subquery Scan on rating  (cost=854.38..1154.48 rows=12004 width=48) (actual rows=12004 loops=1)
+                      Buffers: shared hit=386
+                      ->  HashAggregate  (cost=854.38..1034.44 rows=12004 width=48) (actual rows=12004 loops=1)
+                            Group Key: r_1.id
+                            Batches: 1  Memory Usage: 2705kB
+                            Buffers: shared hit=386
+                            ->  Hash Right Join  (cost=550.09..764.35 rows=12004 width=18) (actual rows=12004 loops=1)
+                                  Hash Cond: (rv.room_id = r_1.id)
+                                  Buffers: shared hit=386
+                                  ->  Seq Scan on reviews rv  (cost=0.00..191.74 rows=8574 width=18) (actual rows=8574 loops=1)
+                                        Buffers: shared hit=106
+                                  ->  Hash  (cost=400.04..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                                        Buckets: 16384  Batches: 1  Memory Usage: 597kB
+                                        Buffers: shared hit=280
+                                        ->  Seq Scan on rooms r_1  (cost=0.00..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                                              Buffers: shared hit=280
+  InitPlan 2 (returns $1)
+    ->  Aggregate  (cost=270.09..270.10 rows=1 width=8) (actual rows=1 loops=1)
+          ->  CTE Scan on filtered filtered_1  (cost=0.00..240.08 rows=12004 width=0) (actual rows=12004 loops=1)
+  ->  Subquery Scan on page  (cost=559.50..795.59 rows=20 width=1037) (actual rows=20 loops=1)
+        Buffers: shared hit=746
+        ->  Limit  (cost=559.50..795.39 rows=20 width=1021) (actual rows=20 loops=1)
+              Buffers: shared hit=746
+              ->  Result  (cost=559.50..142136.55 rows=12004 width=1021) (actual rows=20 loops=1)
+                    Buffers: shared hit=746
+                    ->  Sort  (cost=559.50..589.51 rows=12004 width=989) (actual rows=20 loops=1)
+                          Sort Key: filtered.price_per_hour, filtered.id
+                          Sort Method: top-N heapsort  Memory: 30kB
+                          Buffers: shared hit=666
+                          ->  CTE Scan on filtered  (cost=0.00..240.08 rows=12004 width=989) (actual rows=12004 loops=1)
+                                Buffers: shared hit=666
+                    SubPlan 3
+                      ->  Aggregate  (cost=11.77..11.78 rows=1 width=32) (actual rows=1 loops=20)
+                            Buffers: shared hit=80
+                            ->  Index Scan using room_photos_room_idx on room_photos p  (cost=0.29..11.76 rows=2 width=39) (actual rows=2 loops=20)
+                                  Index Cond: (room_id = filtered.id)
+                                  Buffers: shared hit=80
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.328 ms
+Execution Time: 17.821 ms
+
+## catalog-availability
+Execution median: 18.413 ms
+Execution p95: 28.612 ms
+Result SHA-256: 2404e0615da9634b5892b11f45f7a1fb0e61e0bf9d604cc2ee9daaf5a8c20914
+Sample execution times (ms): 16.793, 16.974, 17.085, 17.159, 17.372, 17.449, 17.621, 17.720, 17.930, 18.311, 18.514, 18.823, 19.036, 21.157, 21.287, 21.308, 25.432, 27.382, 28.612, 31.400
+Aggregate  (cost=2573.23..2573.24 rows=1 width=40) (actual rows=1 loops=1)
+  Buffers: shared hit=4417
+  CTE filtered
+    ->  Hash Join  (cost=1986.87..2318.49 rows=269 width=181) (actual rows=377 loops=1)
+          Hash Cond: (r_1.id = r.id)
+          Buffers: shared hit=4337
+          ->  HashAggregate  (cost=854.38..1034.44 rows=12004 width=48) (actual rows=12004 loops=1)
+                Group Key: r_1.id
+                Batches: 1  Memory Usage: 2705kB
+                Buffers: shared hit=386
+                ->  Hash Right Join  (cost=550.09..764.35 rows=12004 width=18) (actual rows=12004 loops=1)
+                      Hash Cond: (rv.room_id = r_1.id)
+                      Buffers: shared hit=386
+                      ->  Seq Scan on reviews rv  (cost=0.00..191.74 rows=8574 width=18) (actual rows=8574 loops=1)
+                            Buffers: shared hit=106
+                      ->  Hash  (cost=400.04..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                            Buckets: 16384  Batches: 1  Memory Usage: 597kB
+                            Buffers: shared hit=280
+                            ->  Seq Scan on rooms r_1  (cost=0.00..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                                  Buffers: shared hit=280
+          ->  Hash  (cost=1129.13..1129.13 rows=269 width=141) (actual rows=377 loops=1)
+                Buckets: 1024  Batches: 1  Memory Usage: 76kB
+                Buffers: shared hit=3951
+                ->  Bitmap Heap Scan on rooms r  (cost=38.86..1129.13 rows=269 width=141) (actual rows=377 loops=1)
+                      Recheck Cond: ((category_id = '2'::bigint) AND is_active)
+                      Filter: ((price_per_hour >= '800'::numeric) AND (price_per_hour <= '1700'::numeric) AND (capacity >= 16) AND fn_room_is_free(id, '2026-11-30 01:00:00+00'::timestamp with time zone, '2026-11-30 05:00:00+00'::timestamp with time zone))
+                      Rows Removed by Filter: 2624
+                      Heap Blocks: exact=279
+                      Buffers: shared hit=3951
+                      ->  Bitmap Index Scan on rooms_category_idx  (cost=0.00..38.79 rows=3001 width=0) (actual rows=3001 loops=1)
+                            Index Cond: (category_id = '2'::bigint)
+                            Buffers: shared hit=4
+  InitPlan 2 (returns $1)
+    ->  Aggregate  (cost=6.05..6.06 rows=1 width=8) (actual rows=1 loops=1)
+          ->  CTE Scan on filtered filtered_1  (cost=0.00..5.38 rows=269 width=0) (actual rows=377 loops=1)
+  ->  Subquery Scan on page  (cost=12.54..248.62 rows=20 width=1037) (actual rows=20 loops=1)
+        Buffers: shared hit=4417
+        ->  Limit  (cost=12.54..248.42 rows=20 width=1021) (actual rows=20 loops=1)
+              Buffers: shared hit=4417
+              ->  Result  (cost=12.54..3185.17 rows=269 width=1021) (actual rows=20 loops=1)
+                    Buffers: shared hit=4417
+                    ->  Sort  (cost=12.54..13.21 rows=269 width=989) (actual rows=20 loops=1)
+                          Sort Key: filtered.price_per_hour, filtered.id
+                          Sort Method: top-N heapsort  Memory: 33kB
+                          Buffers: shared hit=4337
+                          ->  CTE Scan on filtered  (cost=0.00..5.38 rows=269 width=989) (actual rows=377 loops=1)
+                                Buffers: shared hit=4337
+                    SubPlan 3
+                      ->  Aggregate  (cost=11.77..11.78 rows=1 width=32) (actual rows=1 loops=20)
+                            Buffers: shared hit=80
+                            ->  Index Scan using room_photos_room_idx on room_photos p  (cost=0.29..11.76 rows=2 width=39) (actual rows=2 loops=20)
+                                  Index Cond: (room_id = filtered.id)
+                                  Buffers: shared hit=80
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.289 ms
+Execution Time: 18.514 ms
+
+## catalog-rating
+Execution median: 17.129 ms
+Execution p95: 18.761 ms
+Result SHA-256: 9eb4ff982a9fb8a2896b12a593494333724b8e5c85f5704fef2c6cabb2606e61
+Sample execution times (ms): 16.478, 16.533, 16.535, 16.879, 16.881, 16.959, 17.029, 17.086, 17.104, 17.120, 17.137, 17.262, 17.553, 17.700, 17.743, 17.822, 17.896, 17.958, 18.761, 20.126
+Aggregate  (cost=2801.83..2801.84 rows=1 width=40) (actual rows=1 loops=1)
+  Buffers: shared hit=745
+  CTE filtered
+    ->  Hash Join  (cost=1304.53..1736.09 rows=12004 width=181) (actual rows=12004 loops=1)
+          Hash Cond: (r.id = rating.room_id)
+          Buffers: shared hit=666
+          ->  Seq Scan on rooms r  (cost=0.00..400.04 rows=12004 width=141) (actual rows=12004 loops=1)
+                Filter: is_active
+                Buffers: shared hit=280
+          ->  Hash  (cost=1154.48..1154.48 rows=12004 width=48) (actual rows=12004 loops=1)
+                Buckets: 16384  Batches: 1  Memory Usage: 758kB
+                Buffers: shared hit=386
+                ->  Subquery Scan on rating  (cost=854.38..1154.48 rows=12004 width=48) (actual rows=12004 loops=1)
+                      Buffers: shared hit=386
+                      ->  HashAggregate  (cost=854.38..1034.44 rows=12004 width=48) (actual rows=12004 loops=1)
+                            Group Key: r_1.id
+                            Batches: 1  Memory Usage: 2705kB
+                            Buffers: shared hit=386
+                            ->  Hash Right Join  (cost=550.09..764.35 rows=12004 width=18) (actual rows=12004 loops=1)
+                                  Hash Cond: (rv.room_id = r_1.id)
+                                  Buffers: shared hit=386
+                                  ->  Seq Scan on reviews rv  (cost=0.00..191.74 rows=8574 width=18) (actual rows=8574 loops=1)
+                                        Buffers: shared hit=106
+                                  ->  Hash  (cost=400.04..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                                        Buckets: 16384  Batches: 1  Memory Usage: 597kB
+                                        Buffers: shared hit=280
+                                        ->  Seq Scan on rooms r_1  (cost=0.00..400.04 rows=12004 width=8) (actual rows=12004 loops=1)
+                                              Buffers: shared hit=280
+  InitPlan 2 (returns $1)
+    ->  Aggregate  (cost=270.09..270.10 rows=1 width=8) (actual rows=1 loops=1)
+          ->  CTE Scan on filtered filtered_1  (cost=0.00..240.08 rows=12004 width=0) (actual rows=12004 loops=1)
+  ->  Subquery Scan on page  (cost=559.50..795.59 rows=20 width=1053) (actual rows=20 loops=1)
+        Buffers: shared hit=745
+        ->  Limit  (cost=559.50..795.39 rows=20 width=1021) (actual rows=20 loops=1)
+              Buffers: shared hit=745
+              ->  Result  (cost=559.50..142136.55 rows=12004 width=1021) (actual rows=20 loops=1)
+                    Buffers: shared hit=745
+                    ->  Sort  (cost=559.50..589.51 rows=12004 width=989) (actual rows=20 loops=1)
+                          Sort Key: filtered.avg_rating DESC NULLS LAST, filtered.id
+                          Sort Method: top-N heapsort  Memory: 33kB
+                          Buffers: shared hit=666
+                          ->  CTE Scan on filtered  (cost=0.00..240.08 rows=12004 width=989) (actual rows=12004 loops=1)
+                                Buffers: shared hit=666
+                    SubPlan 3
+                      ->  Aggregate  (cost=11.77..11.78 rows=1 width=32) (actual rows=1 loops=20)
+                            Buffers: shared hit=79
+                            ->  Index Scan using room_photos_room_idx on room_photos p  (cost=0.29..11.76 rows=2 width=39) (actual rows=2 loops=20)
+                                  Index Cond: (room_id = filtered.id)
+                                  Buffers: shared hit=79
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.396 ms
+Execution Time: 17.137 ms
+
+## calendar-month
+Execution median: 0.045 ms
+Execution p95: 0.054 ms
+Result SHA-256: 67e151c0ba147dac958e7d79809742245009d08a05e596ae06bcd4b8daca6077
+Sample execution times (ms): 0.036, 0.037, 0.037, 0.038, 0.038, 0.039, 0.040, 0.042, 0.044, 0.045, 0.046, 0.046, 0.046, 0.047, 0.048, 0.049, 0.049, 0.052, 0.054, 0.063
+Sort  (cost=32.70..32.71 rows=4 width=80) (actual rows=6 loops=1)
+  Sort Key: b.start_at, b.end_at, ('booking'::text)
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=14
+  ->  Nested Loop Left Join  (cost=24.55..32.66 rows=4 width=80) (actual rows=6 loops=1)
+        Buffers: shared hit=14
+        ->  Index Scan using rooms_pkey on rooms r  (cost=0.29..8.30 rows=1 width=8) (actual rows=1 loops=1)
+              Index Cond: (id = '104'::bigint)
+              Filter: is_active
+              Buffers: shared hit=3
+        ->  Sort  (cost=24.27..24.28 rows=4 width=80) (actual rows=6 loops=1)
+              Sort Key: b.start_at
+              Sort Method: quicksort  Memory: 25kB
+              Buffers: shared hit=11
+              ->  Append  (cost=4.31..24.23 rows=4 width=80) (actual rows=6 loops=1)
+                    Buffers: shared hit=11
+                    ->  Bitmap Heap Scan on bookings b  (cost=4.31..16.00 rows=3 width=80) (actual rows=5 loops=1)
+                          Recheck Cond: ((room_id = r.id) AND (tstzrange(start_at, end_at) && '["2026-11-26 00:00:00+00","2026-12-26 00:00:00+00")'::tstzrange) AND (status = ANY ('{pending,active}'::booking_status[])))
+                          Heap Blocks: exact=5
+                          Buffers: shared hit=8
+                          ->  Bitmap Index Scan on bookings_no_overlap  (cost=0.00..4.31 rows=3 width=0) (actual rows=5 loops=1)
+                                Index Cond: ((room_id = r.id) AND (tstzrange(start_at, end_at) && '["2026-11-26 00:00:00+00","2026-12-26 00:00:00+00")'::tstzrange))
+                                Buffers: shared hit=3
+                    ->  Index Scan using room_blocks_no_overlap on room_blocks k  (cost=0.14..8.16 rows=1 width=80) (actual rows=1 loops=1)
+                          Index Cond: ((room_id = r.id) AND (tstzrange(start_at, end_at) && '["2026-11-26 00:00:00+00","2026-12-26 00:00:00+00")'::tstzrange))
+                          Buffers: shared hit=3
+Planning Time: 0.163 ms
+Execution Time: 0.046 ms

@@ -1,0 +1,10 @@
+PostgreSQL log_min_duration_statement = 10 ms
+Before: first logged statement in each benchmark scenario
+2026-11-26T17:07:48.305491772Z 2026-11-26 17:07:48.305 UTC [90] LOG:  duration: 18.787 ms  execute <unnamed>: EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, SUMMARY ON) /* arendo benchmark catalog-availability */
+2026-11-26T17:07:47.818911408Z 2026-11-26 17:07:47.818 UTC [90] LOG:  duration: 20.590 ms  execute <unnamed>: EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, SUMMARY ON) /* arendo benchmark catalog-default */
+2026-11-26T17:07:48.834793684Z 2026-11-26 17:07:48.834 UTC [90] LOG:  duration: 19.576 ms  execute <unnamed>: EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, SUMMARY ON) /* arendo benchmark catalog-rating */
+
+After: first logged statement in each scenario and explicit 25 ms logging check
+2026-11-26T17:09:06.123107625Z 2026-11-26 17:09:06.122 UTC [94] LOG:  duration: 16.609 ms  execute <unnamed>: EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, SUMMARY ON) /* arendo benchmark catalog-availability */
+2026-11-26T17:09:06.445856486Z 2026-11-26 17:09:06.445 UTC [94] LOG:  duration: 16.823 ms  execute <unnamed>: EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, SUMMARY ON) /* arendo benchmark catalog-rating */
+2026-11-26T17:09:07.151592098Z 2026-11-26 17:09:07.151 UTC [101] LOG:  duration: 26.051 ms  statement: SELECT /* arendo benchmark slow-log-check */ pg_sleep(0.025)

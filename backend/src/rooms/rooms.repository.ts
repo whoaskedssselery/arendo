@@ -13,7 +13,9 @@ const sortSql: Record<RoomSort, string> = {
   new: 'created_at DESC, id DESC',
 };
 
-function roomPhotos(roomId: 'r.id' | 'filtered.id'): string {
+const ratingAggregates = 'ROUND(AVG(rv.rating), 2) AS avg_rating, COUNT(*) AS reviews_count';
+
+function roomPhotos(roomId: 'r.id' | 'page.id'): string {
   return `(
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
       'id', p.id, 'url', p.url, 'isMain', p.is_main, 'sortOrder', p.sort_order
@@ -29,11 +31,23 @@ export class RoomsRepository {
   async list(query: RoomQueryDto, period: RoomPeriod | undefined, page: number, pageSize: number) {
     const orderBy = sortSql[query.sort ?? 'price_asc'];
     const offset = BigInt(page - 1) * BigInt(pageSize);
+    // Only rating order needs review aggregates before the page is selected.
+    const sortByRating = query.sort === 'rating_desc';
+    const rankColumns = sortByRating ? ', rating.avg_rating, COALESCE(rating.reviews_count, 0) AS reviews_count' : '';
+    const rankJoin = sortByRating ? `LEFT JOIN (
+      SELECT rv.room_id, ${ratingAggregates}
+      FROM reviews AS rv GROUP BY rv.room_id
+    ) AS rating ON rating.room_id = r.id` : '';
+    const pageRatingColumns = sortByRating ? '' : ', rating.avg_rating, rating.reviews_count';
+    const pageRatingJoin = sortByRating ? '' : `CROSS JOIN LATERAL (
+      SELECT ${ratingAggregates} FROM reviews AS rv WHERE rv.room_id = page.id
+    ) AS rating`;
+
     const { rows } = await this.database.pool.query<{ total: string; items: RoomRow[] }>(
-      `WITH filtered AS (
-         SELECT ${roomColumns}, r.created_at, rating.avg_rating, rating.reviews_count
+      `WITH filtered AS NOT MATERIALIZED (
+         SELECT ${roomColumns}, r.created_at${rankColumns}
          FROM rooms AS r
-         JOIN v_room_rating AS rating ON rating.room_id = r.id
+         ${rankJoin}
          WHERE r.is_active
            AND ($1::bigint IS NULL OR r.category_id = $1)
            AND ($2::numeric IS NULL OR r.price_per_hour >= $2)
@@ -43,14 +57,18 @@ export class RoomsRepository {
            AND ($7::text IS NULL OR strpos(lower(r.title), lower($7)) > 0
                                 OR strpos(lower(r.address), lower($7)) > 0)
        ), page AS (
-         SELECT filtered.*, ${roomPhotos('filtered.id')}
+         SELECT filtered.*
          FROM filtered
          ORDER BY ${orderBy}
          LIMIT $8 OFFSET $9
+       ), enriched AS (
+         SELECT page.*, ${roomPhotos('page.id')}${pageRatingColumns}
+         FROM page
+         ${pageRatingJoin}
        )
        SELECT (SELECT count(*) FROM filtered) AS total,
-              COALESCE(jsonb_agg(page ORDER BY ${orderBy}), '[]'::jsonb) AS items
-       FROM page`,
+              COALESCE(jsonb_agg(enriched ORDER BY ${orderBy}), '[]'::jsonb) AS items
+       FROM enriched`,
       [query.categoryId, query.priceMin, query.priceMax, query.capacity,
         period?.[0], period?.[1], query.q || null, pageSize, offset.toString()],
     );
