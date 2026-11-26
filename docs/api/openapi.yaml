@@ -255,8 +255,9 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/BookingInput' } } }
       responses:
         '201': { description: Создана со статусом pending, content: { application/json: { schema: { $ref: '#/components/schemas/Booking' } } } }
-        '403': { description: Арендатор в чёрном списке, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '409': { description: Период пересекается с другой арендой или закрыт владельцем }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Роль не имеет права на аренду или арендатор в чёрном списке, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Период пересекается с другой арендой или закрыт владельцем, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '422': { $ref: '#/components/responses/Validation' }
   /bookings/{id}:
     get:
@@ -270,22 +271,32 @@ paths:
     post:
       tags: [Bookings]
       summary: Отменить аренду (завершённую отменить нельзя)
+      description: Арендатор может отменить свою аренду до начала, владелец — активную аренду своего помещения, администратор — любую ожидающую или активную аренду.
       parameters: [{ $ref: '#/components/parameters/Id' }]
       requestBody:
         content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 255 } } } } }
       responses:
         '200': { description: Отменена, content: { application/json: { schema: { $ref: '#/components/schemas/Booking' } } } }
-        '409': { description: 'Недопустимый переход статуса, например аренда уже завершена' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
   /bookings/{id}/complete:
     post:
       tags: [Bookings]
-      summary: Принять помещение и завершить аренду (owner). При просрочке создаётся штраф
+      summary: Принять помещение и завершить аренду (owner, admin)
+      description: Владелец завершает аренды своего помещения, администратор — любого. При просрочке создаётся штраф.
       parameters: [{ $ref: '#/components/parameters/Id' }]
       requestBody:
-        content: { application/json: { schema: { type: object, properties: { returnedAt: { type: string, format: date-time } } } } }
+        content: { application/json: { schema: { type: object, properties: { returnedAt: { type: string, format: date-time, description: Между началом аренды и текущим временем. По умолчанию используется текущее время. } } } } }
       responses:
         '200': { description: Завершена, content: { application/json: { schema: { type: object, properties: { booking: { $ref: '#/components/schemas/Booking' }, penaltyAmount: { type: number } } } } } }
-        '409': { description: Недопустимый переход статуса }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
   /bookings/{id}/review:
     post:
       tags: [Reviews]

@@ -11,27 +11,6 @@ const refreshLifetime = "interval '720 hours'";
 export class AuthRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  async transaction<T>(run: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.database.pool.connect();
-    let discardClient = false;
-
-    try {
-      await client.query('BEGIN');
-      const result = await run(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        discardClient = true;
-      }
-      throw error;
-    } finally {
-      client.release(discardClient);
-    }
-  }
-
   async createUser(client: PoolClient, input: RegisterDto, passwordHash: string): Promise<UserRow> {
     const { rows } = await client.query<UserRow>(
       `INSERT INTO users AS u (email, password_hash, full_name, phone, role)

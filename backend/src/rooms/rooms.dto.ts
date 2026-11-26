@@ -2,11 +2,9 @@ import { Transform, type TransformFnParams } from 'class-transformer';
 import {
   IsIn,
   IsInt,
-  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsRFC3339,
   IsString,
   Matches,
   Max,
@@ -14,6 +12,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { IsDateTime } from '../http/date-time.decorator';
 
 export const roomSorts = ['price_asc', 'price_desc', 'rating_desc', 'new'] as const;
 export type RoomSort = (typeof roomSorts)[number];
@@ -29,23 +28,13 @@ function trimText({ value }: TransformFnParams): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
 
-export class RoomIdDto {
-  @Transform(({ value }) => typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value)
-  @IsInt()
-  @Min(1)
-  @Max(Number.MAX_SAFE_INTEGER)
-  id!: number;
-}
-
 export class RoomPeriodDto {
   @IsOptional()
-  @IsRFC3339()
-  @IsISO8601({ strict: true, strictSeparator: true })
+  @IsDateTime()
   from?: string;
 
   @IsOptional()
-  @IsRFC3339()
-  @IsISO8601({ strict: true, strictSeparator: true })
+  @IsDateTime()
   to?: string;
 }
 

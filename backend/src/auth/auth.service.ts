@@ -8,6 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash, truncates } from 'bcryptjs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { DatabaseService } from '../database/database.service';
 import type { LoginDto, RegisterDto } from './auth.dto';
 import { AuthRepository } from './auth.repository';
 import { type AccessClaims, type AuthenticatedSession, type UserRow, userResponse } from './auth.types';
@@ -23,6 +24,7 @@ function hashRefreshToken(token: string): string {
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly database: DatabaseService,
     private readonly repository: AuthRepository,
     private readonly jwt: JwtService,
   ) {}
@@ -36,7 +38,7 @@ export class AuthService {
     const refreshToken = randomBytes(32).toString('base64url');
 
     try {
-      return await this.repository.transaction(async (client) => {
+      return await this.database.transaction(async (client) => {
         const user = await this.repository.createUser(client, input, passwordHash);
         const sessionId = await this.repository.createSession(user.id, hashRefreshToken(refreshToken), client);
         if (!sessionId) throw new ForbiddenException('Account is blocked.');
@@ -64,7 +66,7 @@ export class AuthService {
 
   async refresh(oldToken: string) {
     const refreshToken = randomBytes(32).toString('base64url');
-    return this.repository.transaction(async (client) => {
+    return this.database.transaction(async (client) => {
       const user = await this.repository.rotateSession(client, hashRefreshToken(oldToken), hashRefreshToken(refreshToken));
       if (!user) throw new UnauthorizedException('Invalid or expired refresh token.');
       return this.tokens(user, user.session_id, refreshToken);
