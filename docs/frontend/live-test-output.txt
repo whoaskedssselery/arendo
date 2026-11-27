@@ -1,0 +1,13 @@
+
+> arendo-frontend@1.0.0 test
+> playwright test tests/live.spec.ts
+
+
+Running 4 tests using 1 worker
+
+  ✓  1 tests/live.spec.ts:11:1 › настоящий API: регистрация, создание, конфликт, отмена, изоляция ролей и приёмка (5.1s)
+  ✓  2 tests/live.spec.ts:164:1 › настоящий API: Query cache, debounce, AbortSignal и скрины (1.9s)
+  ✓  3 tests/live.spec.ts:226:1 › API: обновление access-токена и администрирование с отзывом сессии (1.0s)
+  ✓  4 tests/live.spec.ts:314:1 › API: устаревший поиск отменяется, ошибки отображаются и повтор работает (3.9s)
+
+  4 passed (12.8s)

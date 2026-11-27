@@ -45,6 +45,16 @@ export class RoomsService {
     });
   }
 
+  async owned(ownerId: string, query: RoomQueryDto) {
+    return (
+      await this.repository.listOwned(
+        ownerId,
+        query.page ?? 1,
+        query.pageSize ?? 20,
+      )
+    ).map(roomResponse);
+  }
+
   async find(id: number) {
     return this.cache.read('room', [id], async () => {
       const room = await this.repository.findPublicRoom(id);

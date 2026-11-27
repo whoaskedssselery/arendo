@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req, UsePipes } from '@nestjs/common';
 import type { AuthenticatedSession } from '../auth/auth.types';
 import { RequireRoles } from '../auth/require-roles.decorator';
 import { PublicCacheHeaders } from '../http/public-cache-headers.decorator';
@@ -16,6 +16,16 @@ export class RoomsController {
   @PublicCacheHeaders()
   list(@Query() query: RoomQueryDto) {
     return this.rooms.list(query);
+  }
+
+  @Get('owned')
+  @RequireRoles('owner')
+  @Header('Cache-Control', 'no-store')
+  owned(
+    @Req() request: { auth: AuthenticatedSession },
+    @Query() query: RoomQueryDto,
+  ) {
+    return this.rooms.owned(request.auth.user.id, query);
   }
 
   @Get(':id')

@@ -10,15 +10,16 @@
 |---|---|
 | ТЗ по ГОСТ 34.602-2020 | готово |
 | Схема БД, бизнес-логика в БД, тестовые данные | готово, 34 автотеста |
-| Спецификация API (OpenAPI, 36 эндпоинтов) | готово |
-| Макеты экранов | делает фронтенд |
+| Спецификация API (OpenAPI, 37 эндпоинтов) | готово |
+| Макеты экранов | готова [галерея](docs/frontend/index.html), ожидает ревью тимлида |
 | Серверная часть NestJS | каркас, PostgreSQL, Swagger UI, авторизация, каталог помещений и операции аренды |
-| Клиентская часть React | не начата |
+| Клиентская часть React | каталог, календарь, аренды, кабинеты, Query cache; [проверки](docs/frontend/README.md) |
 
 ## Структура
 
 ```
 db/                 SQL-скрипты (01 схема, 02 логика, 03 данные, 04 запросы) и автотесты
+frontend/           React + Vite + TypeScript, UI и сквозные тесты
 backend/            NestJS-сервер и инициализация базы
 docs/tz/            Техническое задание
 docs/db/            Описание БД, ER-диаграмма, статусы
@@ -96,3 +97,34 @@ cd db/tests && npm i && npm test
 createdb arendo
 psql arendo -v ON_ERROR_STOP=1 --single-transaction -f db/01_schema.sql -f db/02_logic.sql -f db/03_seed.sql
 ```
+
+### Frontend
+
+Нужен Node.js 22.12+ (или 24 LTS). Backend запускается на порту 3000.
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Открыть http://localhost:5173. По умолчанию приложение использует настоящий
+API через Vite proxy. Для отдельного демонстрационного режима:
+
+```bash
+VITE_DEMO_MODE=true npm run dev
+```
+
+Демо-аккаунты: `tenant@arendo.test`, `owner@arendo.test`,
+`admin@arendo.test`; пароль `Arendo123!`. Они работают только в деморежиме.
+В API-режиме зарегистрируйте пользователя; SQL seed содержит заглушки паролей.
+
+```bash
+npm run build
+npx playwright install chromium
+npm test
+```
+
+`npm test` запускает демо-UI проверки и обновляет галерею экранов; live-тесты
+включаются отдельно. Запуск с реальной БД, кэширование, конфигурация Nginx/CDN,
+границы реализации и материалы для команды: [docs/frontend/README.md](docs/frontend/README.md).
