@@ -23,7 +23,7 @@ export const uploadUrl = '/api/v1/uploads';
 const maxPhotoBytes = 5 * 1024 * 1024;
 
 /** Тип определяется по содержимому файла, а не по имени и заголовку клиента. */
-function imageExtension(data: Buffer): string | undefined {
+export function imageExtension(data: Buffer): string | undefined {
   if (data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return 'jpg';
   if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
   if (data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WEBP') return 'webp';

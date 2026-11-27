@@ -110,6 +110,25 @@ paths:
       responses:
         '201': { description: Создана, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /categories/{id}/icon:
+    post:
+      tags: [Categories]
+      summary: Загрузить свою иконку категории, PNG, JPEG или WebP до 512 КБ (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties: { file: { type: string, format: binary } }
+      responses:
+        '201': { description: Иконка сохранена, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { description: Файл больше 512 КБ }
+        '422': { description: Не изображение }
   /categories/{id}:
     patch:
       tags: [Categories]

@@ -71,6 +71,34 @@ test('категории: управляет только админ', async () 
   assert.equal((await call('DELETE', '/categories/1', { token: admin.token })).status, 409);
 });
 
+test('иконка категории: из набора и своим файлом', async () => {
+  const body = { name: `Иконки ${run}`, basePricePerHour: 100 };
+  const { data: category } = await call('POST', '/categories', { body, token: admin.token });
+  const path = `/categories/${category.id}`;
+  const chosen = await call('PATCH', path, { body: { photoUrl: '/icons/camera' }, token: admin.token });
+  assert.equal(chosen.data.photoUrl, '/icons/camera');
+  const file = (bytes) => {
+    const form = new FormData();
+    form.append('file', new Blob([bytes]), 'icon.png');
+    return form;
+  };
+  const upload = (bytes, token) => call('POST', `${path}/icon`, { form: file(bytes), token });
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  assert.equal((await upload(png, owner.token)).status, 403);
+  assert.equal((await upload('<svg/>', admin.token)).status, 422);
+  assert.equal((await upload(Buffer.concat([png, Buffer.alloc(600 * 1024)]), admin.token)).status, 413);
+  const uploaded = await upload(png, admin.token);
+  assert.equal(uploaded.status, 201, JSON.stringify(uploaded.data));
+  const url = new URL(uploaded.data.photoUrl, api);
+  assert.equal((await fetch(url)).status, 200);
+  const listed = (await call('GET', '/categories')).data.find((c) => c.id === category.id);
+  assert.equal(listed.photoUrl, uploaded.data.photoUrl);
+  // смена на встроенную иконку удаляет загруженный файл
+  await call('PATCH', path, { body: { photoUrl: '/icons/music' }, token: admin.token });
+  assert.equal((await fetch(url)).status, 404);
+  assert.equal((await call('DELETE', path, { token: admin.token })).status, 204);
+});
+
 test('помещение и фото: владелец, проверка содержимого файла', async () => {
   const created = await call('POST', '/rooms', { token: owner.token, body: {
     categoryId: 1, title: `Зал ${run}`, address: 'Тестовая, 1', areaM2: 40, capacity: 10, pricePerHour: 1000,

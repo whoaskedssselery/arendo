@@ -1,6 +1,6 @@
 # Список API Arendo
 
-Сгенерировано из [openapi.yaml](openapi.yaml) (всего эндпоинтов: 39). Базовый URL: `/api/v1`.
+Сгенерировано из [openapi.yaml](openapi.yaml) (всего эндпоинтов: 40). Базовый URL: `/api/v1`.
 
 ## Auth — Регистрация и вход
 
@@ -35,6 +35,7 @@
 |---|---|---|---|
 | `GET` | `/categories` | нет | Список категорий с фото и ориентировочной ценой |
 | `POST` | `/categories` | JWT | Создать категорию (admin) |
+| `POST` | `/categories/{id}/icon` | JWT | Загрузить свою иконку категории, PNG, JPEG или WebP до 512 КБ (admin) |
 | `PATCH` | `/categories/{id}` | JWT | Изменить категорию (admin) |
 | `DELETE` | `/categories/{id}` | JWT | Удалить категорию (admin); нельзя, если есть помещения |
 
