@@ -71,6 +71,18 @@ test('категории: управляет только админ', async () 
   assert.equal((await call('DELETE', '/categories/1', { token: admin.token })).status, 409);
 });
 
+test('повтор использованного refresh-токена отзывает всю сессию', async () => {
+  const email = `reuse-${run}@arendo.test`;
+  const created = await call('POST', '/auth/register', { body: { fullName: 'Повтор', email, password, role: 'tenant' } });
+  const old = created.data.refreshToken;
+  const rotated = await call('POST', '/auth/refresh', { body: { refreshToken: old } });
+  assert.equal(rotated.status, 200);
+  assert.equal((await call('GET', '/auth/me', { token: rotated.data.accessToken })).status, 200);
+  assert.equal((await call('POST', '/auth/refresh', { body: { refreshToken: old } })).status, 401);
+  assert.equal((await call('POST', '/auth/refresh', { body: { refreshToken: rotated.data.refreshToken } })).status, 401);
+  assert.equal((await call('GET', '/auth/me', { token: rotated.data.accessToken })).status, 401);
+});
+
 test('иконка категории: из набора и своим файлом', async () => {
   const body = { name: `Иконки ${run}`, basePricePerHour: 100 };
   const { data: category } = await call('POST', '/categories', { body, token: admin.token });

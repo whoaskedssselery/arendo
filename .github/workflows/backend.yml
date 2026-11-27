@@ -49,6 +49,6 @@ jobs:
           printf 'POSTGRES_PASSWORD=ci-pg-password\nAPP_DB_PASSWORD=ci-app-password\nJWT_ACCESS_SECRET=ci-only-secret-not-used-anywhere-else-000000\n' > .env
           docker compose up -d --build --wait || { docker compose logs; exit 1; }
           curl -sf http://127.0.0.1:8080/api/v1/rooms
-          curl -sf http://127.0.0.1:8080/ > /dev/null
+          curl -sfI http://127.0.0.1:8080/ | grep -i content-security-policy
           # скрипт тестовых данных должен проходить дважды подряд
           for i in 1 2; do docker compose exec -T db psql -U postgres -d arendo -v ON_ERROR_STOP=1 -f /sql/05_demo_data.sql; done

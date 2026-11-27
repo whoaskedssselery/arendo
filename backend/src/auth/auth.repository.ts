@@ -47,6 +47,14 @@ export class AuthRepository {
     return rows.at(0);
   }
 
+  async revokeFamily(familyHash: string) {
+    await this.database.pool.query(
+      `UPDATE refresh_tokens SET revoked_at = now()
+       WHERE revoked_at IS NULL AND split_part(token_hash, ':', 1) = $1`,
+      [familyHash],
+    );
+  }
+
   async revokeSession(userId: string, sessionId: string, tokenHash: string | null) {
     await this.database.pool.query(
       `UPDATE refresh_tokens

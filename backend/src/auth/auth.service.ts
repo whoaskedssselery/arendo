@@ -16,8 +16,18 @@ const passwordCost = 12;
 // Keep the amount of bcrypt work similar when the email does not exist.
 const dummyPasswordHash = '$2b$12$tLm53TP7VSjqdhDNG2uAG.RrOoKLeSOTN02muGQNOMmkTO9E7AITS';
 
+const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
+
+// Токен имеет вид «семья.случайная часть». Семья не меняется при ротации, поэтому
+// по уже использованному токену можно найти сессию и отозвать её.
+const newRefreshToken = (family = randomBytes(18).toString('base64url')) =>
+  `${family}.${randomBytes(32).toString('base64url')}`;
+const familyOf = (token: string) => (token.includes('.') ? token.slice(0, token.indexOf('.')) : undefined);
+const familyHash = (family: string) => sha256(family).slice(0, 32);
+
 function hashRefreshToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  const family = familyOf(token);
+  return family === undefined ? sha256(token) : `${familyHash(family)}:${sha256(token)}`;
 }
 
 @Injectable()
@@ -33,7 +43,7 @@ export class AuthService {
     }
 
     const passwordHash = await hash(input.password, passwordCost);
-    const refreshToken = randomBytes(32).toString('base64url');
+    const refreshToken = newRefreshToken();
 
     try {
       return await this.repository.transaction(async (transaction) => {
@@ -56,19 +66,24 @@ export class AuthService {
     if (!matches || !user) throw new UnauthorizedException('Неверный email или пароль.');
     if (user.status === 'banned') throw new ForbiddenException('Аккаунт заблокирован.');
 
-    const refreshToken = randomBytes(32).toString('base64url');
+    const refreshToken = newRefreshToken();
     const sessionId = await this.repository.createSession(user.id, hashRefreshToken(refreshToken));
     if (!sessionId) throw new ForbiddenException('Аккаунт заблокирован.');
     return this.tokens(user, sessionId, refreshToken);
   }
 
   async refresh(oldToken: string) {
-    const refreshToken = randomBytes(32).toString('base64url');
-    return this.repository.transaction(async (transaction) => {
+    const family = familyOf(oldToken);
+    const refreshToken = newRefreshToken(family);
+    const tokens = await this.repository.transaction(async (transaction) => {
       const user = await transaction.rotateSession(hashRefreshToken(oldToken), hashRefreshToken(refreshToken));
-      if (!user) throw new UnauthorizedException('Invalid or expired refresh token.');
-      return this.tokens(user, user.session_id, refreshToken);
+      return user && this.tokens(user, user.session_id, refreshToken);
     });
+    if (tokens) return tokens;
+    // Повтор уже использованного токена — признак кражи: сессия закрывается целиком.
+    // Вне транзакции, чтобы отказ ниже не откатил отзыв.
+    if (family !== undefined) await this.repository.revokeFamily(familyHash(family));
+    throw new UnauthorizedException('Invalid or expired refresh token.');
   }
 
   async authenticate(accessToken: string): Promise<AuthenticatedSession> {
