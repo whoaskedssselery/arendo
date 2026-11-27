@@ -511,7 +511,7 @@ components:
         email: { type: string, format: email, maxLength: 255 }
         password: { type: string, minLength: 8, description: Максимум 72 байта в UTF-8 }
         fullName: { type: string, minLength: 1, maxLength: 150 }
-        phone: { type: string, pattern: '^\+?[0-9]{10,15}$', example: '+79991234567' }
+        phone: { type: string, example: '+7 (999) 123-45-67', description: 'Цифры, цифры с плюсом или ? (???) ???-??-??; хранится без пробелов, скобок и дефисов' }
         role: { type: string, enum: [tenant, owner] }
     LoginRequest:
       type: object
