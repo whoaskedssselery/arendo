@@ -99,6 +99,8 @@ test("администратор блокирует и разблокирует 
   await expect(row.getByText("Активен", { exact: true })).toBeVisible();
 });
 test("адаптив 360–1440 и отсутствие ошибок JavaScript", async ({ page }) => {
+  // 16 переходов: на медленной машине CI не укладываются в стандартные 30 секунд.
+  test.setTimeout(90_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   for (const width of [360, 390, 768, 1440]) {
