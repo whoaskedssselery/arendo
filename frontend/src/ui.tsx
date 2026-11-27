@@ -244,12 +244,14 @@ export function RoomPhoto({
   className,
   seed = 0,
   lazy = false,
+  children,
 }: {
   url?: string;
   title: string;
   className: string;
   seed?: number;
   lazy?: boolean;
+  children?: React.ReactNode;
 }) {
   const [failedUrl, setFailedUrl] = useState<string>();
   const failed = url !== undefined && failedUrl === url;
@@ -264,17 +266,22 @@ export function RoomPhoto({
           if (!failed) setFailedUrl(url);
         }}
       />
-      {placeholder && (
-        <span className="photo-note" title="Фото помещения пока нет">
-          Иллюстрация
-        </span>
-      )}
+      {children}
     </div>
   );
 }
 
 export const mainPhoto = (room: Room) =>
   room.photos.find((p) => p.isMain)?.url || room.photos[0]?.url;
+
+export function Rating({ value }: { value: number }) {
+  return (
+    <span className="rating">
+      <StarIcon weight="fill" aria-hidden />
+      {value}
+    </span>
+  );
+}
 
 export function RoomCard({
   room: r,
@@ -306,13 +313,12 @@ export function RoomCard({
           title={r.title}
           seed={r.id}
           lazy
-        />
+        >
+          {r.avgRating == null && <span className="new-badge">Новое</span>}
+        </RoomPhoto>
         <div className="card-title">
           <h3>{r.title}</h3>
-          <span className="rating">
-            <StarIcon weight="fill" aria-hidden />
-            {r.avgRating ?? "Новое"}
-          </span>
+          {r.avgRating != null && <Rating value={r.avgRating} />}
         </div>
         <p className="card-address">{r.address}</p>
         <p className="card-facts">

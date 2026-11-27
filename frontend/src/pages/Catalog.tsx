@@ -1,10 +1,5 @@
 import {
-  BuildingsIcon,
-  CameraIcon,
-  DesktopTowerIcon,
   MagnifyingGlassIcon,
-  PackageIcon,
-  PresentationChartIcon,
   SquaresFourIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -13,6 +8,7 @@ import { motion } from "motion/react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { queryString, request } from "../api";
+import { CategoryIcon } from "../CategoryIcon";
 import DateTimeField from "../DateTimeField";
 import { categoriesQuery } from "../query";
 import type { Category, Page, Room } from "../types";
@@ -24,21 +20,15 @@ interface CategoryOption {
   id: string;
   name: string;
   price?: number;
+  photoUrl?: string;
 }
 const allCategories: CategoryOption = { id: "", name: "Все" };
 const toOption = (c: Category): CategoryOption => ({
   id: String(c.id),
   name: c.name,
   price: c.basePricePerHour,
+  photoUrl: c.photoUrl,
 });
-const categoryIcon = ({ id, name }: CategoryOption) => {
-  if (!id) return SquaresFourIcon;
-  if (/склад/i.test(name)) return PackageIcon;
-  if (/ковор/i.test(name)) return DesktopTowerIcon;
-  if (/перегов|конферен|зал/i.test(name)) return PresentationChartIcon;
-  if (/студи|фото/i.test(name)) return CameraIcon;
-  return BuildingsIcon;
-};
 
 const toInput = (iso: string | null) => {
   if (!iso) return "";
@@ -96,7 +86,6 @@ export default function Catalog() {
       <fieldset className="categories">
         <legend className="sr-only">Категория</legend>
         {[allCategories, ...(categories.data ?? []).map(toOption)].map((c) => {
-          const Icon = categoryIcon(c);
           const active = selected === c.id;
           return (
             <button
@@ -106,11 +95,19 @@ export default function Catalog() {
               aria-pressed={active}
               onClick={() => set("categoryId", c.id)}
             >
-              <Icon
-                size={26}
-                weight={active ? "fill" : "regular"}
-                aria-hidden
-              />
+              {c.id ? (
+                <CategoryIcon
+                  name={c.name}
+                  photoUrl={c.photoUrl}
+                  active={active}
+                />
+              ) : (
+                <SquaresFourIcon
+                  size={26}
+                  weight={active ? "fill" : "regular"}
+                  aria-hidden
+                />
+              )}
               <span>{c.name}</span>
               <small>{c.price ? `от ${money(c.price)}` : "любая цена"}</small>
               {active && (

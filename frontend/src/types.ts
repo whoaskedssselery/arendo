@@ -16,6 +16,7 @@ export interface Category {
   id: number;
   name: string;
   basePricePerHour: number;
+  photoUrl?: string;
 }
 export interface Room {
   id: number;

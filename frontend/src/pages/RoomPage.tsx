@@ -5,7 +5,6 @@ import {
   CaretRightIcon,
   MapPinIcon,
   RulerIcon,
-  StarIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -22,6 +21,7 @@ import {
   ErrorBox,
   mainPhoto,
   money,
+  Rating,
   RoomPhoto,
   State,
   useSession,
@@ -67,10 +67,13 @@ function RoomDetail({ room: r }: { room: Room }) {
       </Link>
       <h1>{r.title}</h1>
       <p className="detail-sub">
-        <span>
-          <StarIcon weight="fill" aria-hidden />
-          {r.avgRating ?? "Пока нет оценок"} · {r.reviewsCount} отзывов
-        </span>
+        {r.avgRating == null ? (
+          <span className="new-badge">Новое</span>
+        ) : (
+          <span>
+            <Rating value={r.avgRating} />· отзывов: {r.reviewsCount}
+          </span>
+        )}
         <span>
           <MapPinIcon aria-hidden />
           {r.address}

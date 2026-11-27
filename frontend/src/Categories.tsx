@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { post, request } from "./api";
+import { IconButton } from "./IconDialog";
 import { categoriesQuery, client } from "./query";
 import { ConfirmButton, ErrorBox, Field } from "./ui";
 
@@ -43,7 +44,10 @@ export function Categories() {
       <ul className="rows">
         {categories.data?.map((c) => (
           <li key={c.id}>
-            <b>{c.name}</b>
+            <span className="category-name">
+              <IconButton category={c} />
+              <b>{c.name}</b>
+            </span>
             <form
               className="row-actions"
               onSubmit={(e) => {
