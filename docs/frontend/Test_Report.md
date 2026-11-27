@@ -1,5 +1,7 @@
 # Проверки frontend Arendo
 
+> Прогон на этапе первой версии интерфейса. Актуальные результаты — в [docs/Test_Report.md](../Test_Report.md).
+
 Дата: 27 ноября 2026. Среда: Linux Ubuntu 24.04, Node.js 24.22, Chromium (Playwright), PostgreSQL 16.15. Для живых тестов использовалась отдельная `arendo_frontend_test`, backend NestJS и production-сборка Vite через `vite preview`. Все перечисленные проверки выполнены, а не запланированы.
 
 | Проверка | Ожидаемо | Фактически | Результат |

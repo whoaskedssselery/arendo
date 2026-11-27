@@ -61,10 +61,10 @@ erDiagram
             enum new_status
             bigint changed_by FK }
     reviews { bigint id PK
-            bigint booking_id FK_UK
+            bigint booking_id FK, UK
             smallint rating "1..5" }
     tenant_reviews { bigint id PK
-            bigint booking_id FK_UK
+            bigint booking_id FK, UK
             bigint owner_id FK
             smallint rating "1..5" }
     penalties { bigint id PK
