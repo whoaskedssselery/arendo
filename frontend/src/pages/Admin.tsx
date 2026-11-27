@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { queryString, request } from "../api";
+import { Categories } from "../Categories";
 import { client } from "../query";
 import type { User } from "../types";
 import {
@@ -102,6 +103,7 @@ export default function Admin() {
         setPage={setPage}
         next={(data.data?.length ?? 0) === 10}
       />
+      <Categories />
     </>
   );
 }

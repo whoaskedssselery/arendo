@@ -1,12 +1,29 @@
-import { ProhibitIcon, ShieldCheckIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  EnvelopeIcon,
+  PhoneIcon,
+  ProhibitIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { request } from "../api";
+import { toast } from "sonner";
+import { post, request } from "../api";
+import { Penalties } from "../Penalties";
+import { client } from "../query";
 import type { Tenant } from "../types";
-import { initials, money, State } from "../ui";
+import {
+  date,
+  ErrorBox,
+  Field,
+  initials,
+  money,
+  State,
+  StatusBadge,
+} from "../ui";
 
 export default function TenantPage() {
-  const id = useParams().id;
+  const id = Number(useParams().id);
   const data = useQuery({
     queryKey: ["tenants", id],
     queryFn: ({ signal }) => request<Tenant>(`/tenants/${id}`, { signal }),
@@ -34,6 +51,18 @@ export default function TenantPage() {
                 )}
                 {t.isBlacklisted ? "В чёрном списке" : "Ограничений нет"}
               </span>
+              <p className="contacts">
+                {t.email && (
+                  <a className="text-link" href={`mailto:${t.email}`}>
+                    <EnvelopeIcon aria-hidden /> {t.email}
+                  </a>
+                )}
+                {t.phone && (
+                  <a className="text-link" href={`tel:${t.phone}`}>
+                    <PhoneIcon aria-hidden /> {t.phone}
+                  </a>
+                )}
+              </p>
             </div>
           </div>
           <dl className="stats">
@@ -51,8 +80,70 @@ export default function TenantPage() {
               </div>
             ))}
           </dl>
+          {Boolean(t.history?.length) && (
+            <section className="panel spaced">
+              <h2>История аренд</h2>
+              <ul className="rows">
+                {t.history?.map((h) => (
+                  <li key={h.id}>
+                    <span>
+                      <b>{h.roomTitle}</b>
+                      <small>
+                        {date(h.startAt)} — {date(h.endAt)}
+                      </small>
+                    </span>
+                    <StatusBadge status={h.status} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <Penalties tenantId={id} manage />
+          <Restrict tenantId={id} />
         </>
       )}
     </State>
+  );
+}
+
+function Restrict({ tenantId }: { tenantId: number }) {
+  const add = useMutation({
+    mutationFn: (body: unknown) => post("/blacklist", body),
+    onSuccess: async () => {
+      toast.success("Запись добавлена.");
+      await Promise.all(
+        ["blacklist", "tenants"].map((key) =>
+          client.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
+    },
+  });
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const d = Object.fromEntries(new FormData(form));
+    add.mutate(
+      { tenantId, entryType: d.entryType, reason: d.reason },
+      { onSuccess: () => form.reset() },
+    );
+  }
+  return (
+    <section className="panel">
+      <h2>Чёрный список</h2>
+      <form className="form-grid" onSubmit={submit}>
+        <label className="field">
+          Что сделать
+          <select name="entryType">
+            <option value="warning">Предупреждение</option>
+            <option value="ban">Запретить аренду</option>
+          </select>
+        </label>
+        <Field label="Причина" name="reason" required maxLength={500} />
+        <button type="submit" disabled={add.isPending}>
+          Добавить
+        </button>
+        <ErrorBox error={add.error} />
+      </form>
+    </section>
   );
 }

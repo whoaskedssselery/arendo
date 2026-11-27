@@ -20,6 +20,8 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import Bookings from "./pages/Bookings";
 import Catalog from "./pages/Catalog";
+import Manage from "./pages/Manage";
+import Moderation from "./pages/Moderation";
 import Owner from "./pages/Owner";
 import RoomPage from "./pages/RoomPage";
 import TenantPage from "./pages/TenantPage";
@@ -93,6 +95,11 @@ function Header() {
       to: "/owner",
       label: "Мои помещения",
       visible: s?.user.role === "owner",
+    },
+    {
+      to: "/moderation",
+      label: "Арендаторы",
+      visible: s?.user.role === "owner" || s?.user.role === "admin",
     },
     {
       to: "/admin",
@@ -224,6 +231,22 @@ function App() {
             element={
               <Protect roles={["owner"]}>
                 <Owner />
+              </Protect>
+            }
+          />
+          <Route
+            path="/owner/rooms/:id"
+            element={
+              <Protect roles={["owner"]}>
+                <Manage />
+              </Protect>
+            }
+          />
+          <Route
+            path="/moderation"
+            element={
+              <Protect roles={["owner", "admin"]}>
+                <Moderation />
               </Protect>
             }
           />

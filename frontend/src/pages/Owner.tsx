@@ -108,7 +108,12 @@ export default function Owner() {
       <State query={rooms} skeleton="cards">
         <div className="grid">
           {rooms.data?.map((r, index) => (
-            <RoomCard key={r.id} room={r} index={index} />
+            <div key={r.id} className="owned">
+              <RoomCard room={r} index={index} />
+              <Link className="button manage" to={`/owner/rooms/${r.id}`}>
+                Управлять
+              </Link>
+            </div>
           ))}
         </div>
         {!rooms.data?.length && (

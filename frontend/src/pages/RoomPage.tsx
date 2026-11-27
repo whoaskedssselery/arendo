@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import DateTimeField from "../DateTimeField";
 import { invalidateBookings, roomQuery } from "../query";
+import { ReviewList } from "../Reviews";
 import type { Booking, Room, Slot } from "../types";
 import {
   date,
@@ -103,7 +104,22 @@ function RoomDetail({ room: r }: { room: Room }) {
             </ul>
             <p>{r.description || "Описание пока не добавлено."}</p>
           </section>
+          {r.photos.length > 1 && (
+            <div className="gallery">
+              {r.photos.map((p) => (
+                <RoomPhoto
+                  key={p.id}
+                  className="tile"
+                  url={p.url}
+                  title={r.title}
+                  seed={p.id}
+                  lazy
+                />
+              ))}
+            </div>
+          )}
           <Availability room={r} period={period} setPeriod={setPeriod} />
+          <ReviewList roomId={r.id} />
         </div>
         <BookingForm room={r} period={period} setPeriod={setPeriod} />
       </div>

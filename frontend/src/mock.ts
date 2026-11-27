@@ -126,7 +126,7 @@ export async function mockRequest(
   ) => {
     throw new ApiError(status, message);
   };
-  if (p === "/categories") return categories;
+  if (p === "/categories" && method === "GET") return categories;
   if (p === "/rooms" && method === "GET") {
     let list = rooms.filter(
       (r) =>
@@ -181,7 +181,11 @@ export async function mockRequest(
           b.endAt > String(q.get("from")),
       )
       .map((b) => ({ kind: "booking", ...b }));
-  if (p.endsWith("/reviews")) return [];
+  if (
+    method === "GET" &&
+    (/\/(reviews|blocks)$/.test(p) || p === "/penalties" || p === "/blacklist")
+  )
+    return [];
   if (p === "/auth/login" || p === "/auth/register") {
     let user = users.find((u) => u.email === data.email);
     if (p.endsWith("register")) {

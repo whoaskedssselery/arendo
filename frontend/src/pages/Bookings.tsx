@@ -5,7 +5,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { post, queryString, request } from "../api";
+import { Penalties } from "../Penalties";
 import { invalidateBookings, roomQuery } from "../query";
+import { ReviewButton } from "../Reviews";
 import type { Booking } from "../types";
 import {
   ConfirmButton,
@@ -79,6 +81,7 @@ export default function Bookings() {
         setPage={setPage}
         next={(data.data?.length ?? 0) === 10}
       />
+      {s.user.role === "tenant" && <Penalties />}
     </>
   );
 }
@@ -88,10 +91,14 @@ function BookingCard({ b }: { b: Booking }) {
   const room = useQuery(roomQuery(b.roomId));
   const action = useMutation({
     mutationFn: (type: "cancel" | "complete") =>
-      post(`/bookings/${b.id}/${type}`),
-    onSuccess: async (_, type) => {
+      post<{ penaltyAmount?: number }>(`/bookings/${b.id}/${type}`),
+    onSuccess: async (result, type) => {
       toast.success(
-        type === "cancel" ? "Аренда отменена." : "Помещение принято.",
+        type === "cancel"
+          ? "Аренда отменена."
+          : result?.penaltyAmount
+            ? `Помещение принято. Штраф за просрочку: ${money(result.penaltyAmount)}.`
+            : "Помещение принято.",
       );
       await invalidateBookings();
     },
@@ -126,6 +133,19 @@ function BookingCard({ b }: { b: Booking }) {
           </p>
         )}
         <b>{money(b.totalPrice)}</b>
+        {Boolean(b.history?.length) && (
+          <details className="history">
+            <summary>История статусов</summary>
+            <ul>
+              {b.history.map((h) => (
+                <li key={`${h.newStatus}-${h.changedAt}`}>
+                  {labels[h.newStatus as keyof typeof labels]} ·{" "}
+                  {date(h.changedAt)}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
       <div className="booking-side">
         <StatusBadge status={b.status} />
@@ -153,6 +173,14 @@ function BookingCard({ b }: { b: Booking }) {
             Принять помещение
           </ConfirmButton>
         )}
+        {b.status === "completed" &&
+          s.user.role === "tenant" &&
+          !b.hasReview && <ReviewButton bookingId={b.id} kind="review" />}
+        {b.status === "completed" &&
+          s.user.role === "owner" &&
+          !b.hasTenantReview && (
+            <ReviewButton bookingId={b.id} kind="tenant-review" />
+          )}
         <ErrorBox error={action.error} />
       </div>
     </article>

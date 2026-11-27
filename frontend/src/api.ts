@@ -45,7 +45,9 @@ export async function request<T>(
     response = await fetch(base + path, {
       ...options,
       headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(typeof options.body === "string"
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
         ...options.headers,
       },
@@ -82,14 +84,22 @@ export async function request<T>(
     await refreshing;
     return request(path, options, false);
   }
-  if (!response.ok)
+  if (!response.ok) {
+    // Тексты бизнес-правил сервер присылает по-русски; технические заменяем своими.
+    const body = await response.json().catch(() => null);
+    const own =
+      typeof body?.message === "string" && /[а-яё]/i.test(body.message)
+        ? body.message
+        : undefined;
     throw new ApiError(
       response.status,
-      (response.status === 401 && path === "/auth/login"
-        ? "Неверный email или пароль."
-        : messages[response.status]) ||
+      own ||
+        (response.status === 401 && path === "/auth/login"
+          ? "Неверный email или пароль."
+          : messages[response.status]) ||
         "Не удалось выполнить запрос. Попробуйте ещё раз.",
     );
+  }
   return response.status === 204 ? (undefined as T) : response.json();
 }
 export const post = <T>(path: string, body: unknown = {}) =>
