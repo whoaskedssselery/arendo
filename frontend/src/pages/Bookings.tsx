@@ -113,7 +113,6 @@ function BookingCard({ b }: { b: Booking }) {
         className="thumb"
         url={room.data && mainPhoto(room.data)}
         title={title}
-        seed={b.roomId}
         lazy
       />
       <div className="booking-info">

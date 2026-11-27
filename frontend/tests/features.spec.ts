@@ -139,3 +139,48 @@ test("управление помещением, штраф, отзывы и ч�
   await page.goto(`/rooms/${room.id}`);
   await expect(page.locator(".reviews")).toContainText("Хороший зал");
 });
+
+test("фото при создании помещения, листание и просмотр", async ({
+  page,
+  request,
+}) => {
+  const owner = await register(request, "owner");
+  const png = {
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  };
+  const title = `Фотозал ${Date.now()}`;
+  await signIn(page, owner, "/owner");
+  await page.getByText("Добавить помещение").click();
+  await page.getByLabel("Название").fill(title);
+  await page.getByLabel("Адрес").fill("Тестовая, 3");
+  await page.getByLabel("Площадь, м²").fill("20");
+  await page.getByLabel("Вместимость").fill("5");
+  await page.getByLabel("Цена за час, ₽").fill("500");
+  await page.locator(".photo-picker input").setInputFiles([
+    { name: "one.png", ...png },
+    { name: "two.png", ...png },
+  ]);
+  await expect(page.locator(".photo-picker figure")).toHaveCount(2);
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByText("Помещение добавлено.")).toBeVisible();
+  await page.getByRole("link", { name: new RegExp(title) }).click();
+  await expect(page.locator(".slide .slide-count")).toContainText("1 / 2");
+  await page.getByRole("button", { name: "Следующее фото" }).click();
+  await expect(page.locator(".slide .slide-count")).toContainText("2 / 2");
+  await page.getByRole("button", { name: "Фото 1" }).click();
+  await expect(page.locator(".slide .slide-count")).toContainText("1 / 2");
+  await page
+    .getByRole("button", { name: "Открыть фото во весь экран" })
+    .click();
+  await expect(page.locator("dialog.lightbox")).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("dialog.lightbox .slide-count")).toHaveText(
+    "2 / 2",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog.lightbox")).toBeHidden();
+});

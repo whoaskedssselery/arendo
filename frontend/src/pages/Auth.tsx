@@ -3,10 +3,13 @@ import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { post, setSession } from "../api";
-import { authImage } from "../images";
 import { client } from "../query";
 import type { Session } from "../types";
 import { ErrorBox, Field, PasswordField } from "../ui";
+
+const phonePattern =
+  "\\+?[0-9]{10,15}|\\+?[0-9] \\([0-9]{3}\\) [0-9]{3}-[0-9]{2}-[0-9]{2}";
+const phoneHint = "79991234567, +79991234567 или +7 (999) 123-45-67";
 
 export default function Auth({ register = false }: { register?: boolean }) {
   const nav = useNavigate();
@@ -42,7 +45,7 @@ export default function Auth({ register = false }: { register?: boolean }) {
   }
   return (
     <section className="auth">
-      <img src={authImage} alt="" />
+      <img src="/demo/loft-2.webp" alt="" />
       <div className="auth-body">
         <h1>{register ? "Создать аккаунт" : "Вход"}</h1>
         <p>
@@ -74,29 +77,40 @@ export default function Auth({ register = false }: { register?: boolean }) {
               <Field
                 label="Имя и фамилия"
                 name="fullName"
+                placeholder="Анна Кузнецова"
                 required
                 maxLength={150}
                 autoComplete="name"
               />
-              <Field
-                label="Телефон (необязательно)"
-                name="phone"
-                type="tel"
-                pattern="\+?[0-9]{10,15}"
-                autoComplete="tel"
-              />
+              <div>
+                <Field
+                  label="Телефон (необязательно)"
+                  name="phone"
+                  type="tel"
+                  placeholder="+7 (999) 123-45-67"
+                  pattern={phonePattern}
+                  title={phoneHint}
+                  aria-describedby="phone-hint"
+                  autoComplete="tel"
+                />
+                <small id="phone-hint" className="field-hint">
+                  {phoneHint}
+                </small>
+              </div>
             </>
           )}
           <Field
             label="Email"
             name="email"
             type="email"
+            placeholder="name@example.com"
             required
             autoComplete="email"
           />
           <PasswordField
             label="Пароль"
             name="password"
+            placeholder={register ? "Не короче 8 символов" : "Ваш пароль"}
             required
             minLength={register ? 8 : 1}
             autoComplete={register ? "new-password" : "current-password"}

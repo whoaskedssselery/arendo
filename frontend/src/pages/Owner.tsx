@@ -1,9 +1,10 @@
 import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { post, queryString, request } from "../api";
+import { PhotoPicker } from "../PhotoPicker";
 import { categoriesQuery, client } from "../query";
 import type { Room } from "../types";
 import { ErrorBox, Field, Pager, RoomCard, State } from "../ui";
@@ -22,10 +23,29 @@ export default function Owner() {
     staleTime: 45000,
   });
   const categories = useQuery(categoriesQuery);
+  const [photos, setPhotos] = useState<File[]>([]);
   const mutation = useMutation({
-    mutationFn: (data: unknown) => post("/rooms", data),
-    onSuccess: () => {
+    mutationFn: async (data: unknown) => {
+      const room = await post<Room>("/rooms", data);
+      let failed = 0;
+      // По очереди, чтобы сохранить порядок: первое фото становится главным.
+      for (const file of photos) {
+        const body = new FormData();
+        body.append("file", file);
+        await request(`/rooms/${room.id}/photos`, {
+          method: "POST",
+          body,
+        }).catch(() => failed++);
+      }
+      return failed;
+    },
+    onSuccess: (failed) => {
       toast.success("Помещение добавлено.");
+      if (failed)
+        toast.error(
+          `Не загрузилось фото: ${failed}. Добавьте их через «Управлять».`,
+        );
+      setPhotos([]);
       return client.invalidateQueries({ queryKey: ["rooms"] });
     },
   });
@@ -98,11 +118,12 @@ export default function Owner() {
             step="0.01"
           />
           <Field label="Описание" name="description" />
+          <PhotoPicker files={photos} onChange={setPhotos} />
           <button
             type="submit"
             disabled={mutation.isPending || !categories.data?.length}
           >
-            Добавить
+            {mutation.isPending ? "Сохраняем…" : "Добавить"}
           </button>
           <ErrorBox error={mutation.error} />
         </form>

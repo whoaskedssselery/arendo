@@ -2,6 +2,8 @@ import { Transform } from 'class-transformer';
 import { IsEmail, IsIn, IsNotEmpty, IsString, Matches, MaxLength, MinLength, ValidateIf } from 'class-validator';
 import { publicRoles } from './auth.types';
 
+const formattedPhone = /^\+?[0-9] \([0-9]{3}\) [0-9]{3}-[0-9]{2}-[0-9]{2}$/;
+
 class EmailDto {
   @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   @IsEmail()
@@ -28,6 +30,12 @@ export class RegisterDto extends EmailDto {
   @MaxLength(150)
   fullName!: string;
 
+  // Принимаются цифры, цифры с «+» и запись «+7 (999) 123-45-67»; в базу идут только цифры и «+».
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return formattedPhone.test(trimmed) ? trimmed.replace(/[ ()-]/g, '') : trimmed;
+  })
   @ValidateIf((_, value) => value !== undefined)
   @IsString()
   @Matches(/^\+?[0-9]{10,15}$/)

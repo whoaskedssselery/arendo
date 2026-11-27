@@ -184,12 +184,7 @@ function Photos({ room }: { room: Room }) {
       <div className="photo-grid">
         {room.photos.map((p) => (
           <figure key={p.id}>
-            <RoomPhoto
-              className="tile"
-              url={p.url}
-              title={room.title}
-              seed={p.id}
-            />
+            <RoomPhoto className="tile" url={p.url} title={room.title} />
             <button
               type="button"
               className="icon-button"

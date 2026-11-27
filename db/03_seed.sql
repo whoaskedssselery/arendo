@@ -22,9 +22,9 @@ INSERT INTO rooms (owner_id, category_id, title, description, address, area_m2, 
  (3, 4, 'Склад №3',          'Сухой склад, пандус',            'Москва, Складочная ул., 1', 200, 5, 350, 2500);
 
 INSERT INTO room_photos (room_id, url, is_main, sort_order) VALUES
- (1, '/img/rooms/neva-1.jpg', TRUE, 0), (1, '/img/rooms/neva-2.jpg', FALSE, 1),
- (2, '/img/rooms/loft-1.jpg', TRUE, 0), (3, '/img/rooms/svet-1.jpg', TRUE, 0),
- (4, '/img/rooms/sklad-1.jpg', TRUE, 0);
+ (1, '/demo/meet-1.webp', TRUE, 0), (1, '/demo/meet-2.webp', FALSE, 1),
+ (2, '/demo/loft-1.webp', TRUE, 0), (3, '/demo/studio-2.webp', TRUE, 0),
+ (4, '/demo/store-1.webp', TRUE, 0);
 
 -- Исторические аренды (вставляются сразу в завершённом статусе — это импорт данных)
 INSERT INTO bookings (room_id, tenant_id, start_at, end_at, status, actual_return_at) VALUES

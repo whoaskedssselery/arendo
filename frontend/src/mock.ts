@@ -1,7 +1,6 @@
 // Explicit demo adapter. Never used as a fallback for a failed API request.
 
 import { ApiError } from "./api";
-import { photoFor } from "./images";
 import type { Booking, Category, Room, Session, User } from "./types";
 export const categories: Category[] = [
   { id: 1, name: "Лофты", basePricePerHour: 1800 },
@@ -37,7 +36,7 @@ const rooms: Room[] = names.map((title, i) => ({
   photos: [
     {
       id: i + 1,
-      url: photoFor(title, Math.floor(i / 3)),
+      url: `/demo/${["meet", "cowork", "studio"][i % 3]}-${(Math.floor(i / 3) % 2) + 1}.webp`,
       isMain: true,
       sortOrder: 0,
     },

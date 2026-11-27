@@ -71,6 +71,22 @@ test('категории: управляет только админ', async () 
   assert.equal((await call('DELETE', '/categories/1', { token: admin.token })).status, 409);
 });
 
+test('телефон принимается в трёх записях и хранится без оформления', async () => {
+  const signUp = (n, phone) => call('POST', '/auth/register', {
+    body: { fullName: 'Телефон', email: `phone${n}-${run}@arendo.test`, password, role: 'tenant', phone },
+  });
+  const cases = [['79991234567', '79991234567'], ['+79991234567', '+79991234567'],
+    ['+7 (999) 123-45-67', '+79991234567'], ['8 (999) 123-45-67', '89991234567']];
+  for (const [index, [typed, stored]] of cases.entries()) {
+    const { status, data } = await signUp(index, typed);
+    assert.equal(status, 201, JSON.stringify(data));
+    assert.equal(data.user.phone, stored);
+  }
+  for (const [index, wrong] of ['123', '+7 999 123 45 67 доб. 1', '7999+1234567'].entries()) {
+    assert.equal((await signUp(`bad${index}`, wrong)).status, 422, wrong);
+  }
+});
+
 test('повтор использованного refresh-токена отзывает всю сессию', async () => {
   const email = `reuse-${run}@arendo.test`;
   const created = await call('POST', '/auth/register', { body: { fullName: 'Повтор', email, password, role: 'tenant' } });

@@ -13,19 +13,11 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import DateTimeField from "../DateTimeField";
+import { Gallery } from "../Gallery";
 import { invalidateBookings, roomQuery } from "../query";
 import { ReviewList } from "../Reviews";
 import type { Booking, Room, Slot } from "../types";
-import {
-  date,
-  ErrorBox,
-  mainPhoto,
-  money,
-  Rating,
-  RoomPhoto,
-  State,
-  useSession,
-} from "../ui";
+import { date, ErrorBox, money, Rating, State, useSession } from "../ui";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toInput = (d: Date) =>
@@ -81,12 +73,7 @@ function RoomDetail({ room: r }: { room: Room }) {
           {r.address}
         </span>
       </p>
-      <RoomPhoto
-        className="detail-photo"
-        url={mainPhoto(r)}
-        title={r.title}
-        seed={r.id}
-      />
+      <Gallery key={r.id} room={r} />
       <div className="detail-grid">
         <div className="detail-main">
           <section className="block">
@@ -109,20 +96,6 @@ function RoomDetail({ room: r }: { room: Room }) {
             </ul>
             <p>{r.description || "Описание пока не добавлено."}</p>
           </section>
-          {r.photos.length > 1 && (
-            <div className="gallery">
-              {r.photos.map((p) => (
-                <RoomPhoto
-                  key={p.id}
-                  className="tile"
-                  url={p.url}
-                  title={r.title}
-                  seed={p.id}
-                  lazy
-                />
-              ))}
-            </div>
-          )}
           <Availability room={r} period={period} setPeriod={setPeriod} />
           <ReviewList roomId={r.id} />
         </div>

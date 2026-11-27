@@ -5,6 +5,7 @@ import {
   ClockIcon,
   EyeIcon,
   EyeSlashIcon,
+  ImageIcon,
   PlayCircleIcon,
   RulerIcon,
   StarIcon,
@@ -17,7 +18,6 @@ import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { getSession } from "./api";
-import { photoFor } from "./images";
 import { client, roomQuery } from "./query";
 import type { Booking, Role, Room } from "./types";
 
@@ -238,34 +238,36 @@ export function Protect({
   );
 }
 
+/** Фото помещения; без него — пустая рамка, а не картинка из набора. */
 export function RoomPhoto({
   url,
   title,
   className,
-  seed = 0,
   lazy = false,
   children,
 }: {
   url?: string;
   title: string;
   className: string;
-  seed?: number;
   lazy?: boolean;
   children?: React.ReactNode;
 }) {
   const [failedUrl, setFailedUrl] = useState<string>();
-  const failed = url !== undefined && failedUrl === url;
-  const placeholder = !url || failed;
   return (
     <div className={`${className} room-photo`}>
-      <img
-        src={placeholder ? photoFor(title, seed) : url}
-        alt={placeholder ? "Иллюстрация пространства" : title}
-        loading={lazy ? "lazy" : "eager"}
-        onError={() => {
-          if (!failed) setFailedUrl(url);
-        }}
-      />
+      {url && url !== failedUrl ? (
+        <img
+          src={url}
+          alt={title}
+          loading={lazy ? "lazy" : "eager"}
+          onError={() => setFailedUrl(url)}
+        />
+      ) : (
+        <span className="no-photo" role="img" aria-label="Нет фото">
+          <ImageIcon size={32} aria-hidden />
+          <span>Нет фото</span>
+        </span>
+      )}
       {children}
     </div>
   );
@@ -309,13 +311,7 @@ export function RoomCard({
         onMouseEnter={() => client.prefetchQuery(roomQuery(r.id))}
         onFocus={() => client.prefetchQuery(roomQuery(r.id))}
       >
-        <RoomPhoto
-          className="photo"
-          url={mainPhoto(r)}
-          title={r.title}
-          seed={r.id}
-          lazy
-        >
+        <RoomPhoto className="photo" url={mainPhoto(r)} title={r.title} lazy>
           {r.avgRating == null && <span className="new-badge">Новое</span>}
         </RoomPhoto>
         <div className="card-title">

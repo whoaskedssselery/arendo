@@ -70,6 +70,23 @@ SELECT id, room_id, tenant_id, 3 + (room_id % 3),
        (ARRAY['Нормально, но хотелось бы тише', 'Всё как в описании', 'Отличное место, вернёмся'])[1 + room_id % 3]
 FROM new_history;
 
+-- Фото демонстрационным помещениям. Помещения, созданные пользователями, не затрагиваются.
+DELETE FROM room_photos WHERE url LIKE '/img/rooms/%';
+INSERT INTO room_photos (room_id, url, is_main, sort_order)
+SELECT r.id, '/demo/' || s.name || '-' || (1 + (r.id + n.i) % 2) || '.webp', n.i = 0, n.i
+FROM rooms r
+JOIN room_categories c ON c.id = r.category_id
+CROSS JOIN LATERAL (SELECT CASE
+    WHEN r.title ILIKE '%склад%' THEN 'store'
+    WHEN r.title ILIKE '%лофт%' THEN 'loft'
+    WHEN c.name = 'Коворкинг' THEN 'cowork'
+    WHEN c.name = 'Фотостудия' THEN 'studio'
+    ELSE 'meet' END AS name) s
+CROSS JOIN generate_series(0, 1) AS n(i)
+WHERE (r.title IN (SELECT title FROM demo_rooms)
+       OR r.title IN ('Зал «Нева»', 'Коворкинг «Лофт»', 'Студия «Свет»', 'Склад №3'))
+  AND NOT EXISTS (SELECT 1 FROM room_photos p WHERE p.room_id = r.id);
+
 SELECT (SELECT count(*) FROM new_rooms) AS "добавлено помещений",
        (SELECT count(*) FROM rooms WHERE is_active) AS "всего в каталоге";
 COMMIT;
