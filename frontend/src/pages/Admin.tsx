@@ -1,9 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { queryString, request } from "../api";
 import { client } from "../query";
 import type { User } from "../types";
-import { ErrorBox, Pager, State, useRequiredSession } from "../ui";
+import {
+  ConfirmButton,
+  ErrorBox,
+  initials,
+  Pager,
+  roleLabels,
+  State,
+  useRequiredSession,
+} from "../ui";
+
 export default function Admin() {
   const s = useRequiredSession();
   const [page, setPage] = useState(1);
@@ -22,14 +32,17 @@ export default function Admin() {
           status: u.status === "active" ? "banned" : "active",
         }),
       }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      toast.success("Доступ изменён.");
+      return client.invalidateQueries({ queryKey: ["users"] });
+    },
   });
   return (
     <>
       <h1>Администрирование</h1>
-      <p>Пользователи и доступ к сервису</p>
+      <p>Пользователи и доступ к сервису.</p>
       <ErrorBox error={mutation.error} />
-      <State query={data}>
+      <State query={data} skeleton="rows">
         <div className="panel table-wrap">
           <table>
             <thead>
@@ -41,30 +54,45 @@ export default function Admin() {
               </tr>
             </thead>
             <tbody>
-              {data.data?.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    {u.fullName}
-                    <small>{u.email}</small>
-                  </td>
-                  <td>{u.role}</td>
-                  <td>{u.status === "active" ? "Активен" : "Заблокирован"}</td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={mutation.isPending || u.id === s.user.id}
-                      onClick={() => {
-                        if (confirm("Изменить доступ пользователя?"))
-                          mutation.mutate(u);
-                      }}
-                    >
-                      {u.status === "active"
-                        ? "Заблокировать"
-                        : "Разблокировать"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {data.data?.map((u) => {
+                const active = u.status === "active";
+                const action = active ? "Заблокировать" : "Разблокировать";
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="person">
+                        <span className="avatar" aria-hidden>
+                          {initials(u.fullName)}
+                        </span>
+                        <span>
+                          {u.fullName}
+                          <small>{u.email}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td>{roleLabels[u.role]}</td>
+                    <td>
+                      <span
+                        className={active ? "badge completed" : "badge overdue"}
+                      >
+                        {active ? "Активен" : "Заблокирован"}
+                      </span>
+                    </td>
+                    <td>
+                      <ConfirmButton
+                        className="secondary"
+                        disabled={mutation.isPending || u.id === s.user.id}
+                        title={`${action}?`}
+                        text={`${u.fullName}, ${u.email}`}
+                        confirmLabel={`Да, ${action.toLowerCase()}`}
+                        onConfirm={() => mutation.mutate(u)}
+                      >
+                        {action}
+                      </ConfirmButton>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

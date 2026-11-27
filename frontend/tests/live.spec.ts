@@ -1,10 +1,9 @@
 import { createRequire } from "node:module";
 import { expect, test } from "@playwright/test";
+import { pickDateTime } from "./helpers";
 
 const require = createRequire(import.meta.url);
 const api = "http://127.0.0.1:3000/api/v1";
-const local = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:00`;
 test.skip(
   !process.env.LIVE_API,
   "Запуск отдельно с LIVE_API=1 и настоящим backend",
@@ -56,8 +55,8 @@ test("настоящий API: регистрация, создание, конф
   start.setDate(start.getDate() + 8);
   start.setHours(10, 0, 0, 0);
   const end = new Date(+start + 7200000);
-  await page.getByLabel("Начало аренды", { exact: true }).fill(local(start));
-  await page.getByLabel("Окончание аренды", { exact: true }).fill(local(end));
+  await pickDateTime(page, "Начало аренды", start);
+  await pickDateTime(page, "Окончание аренды", end);
   await page.getByRole("button", { name: "Арендовать", exact: true }).click();
   await expect(page).toHaveURL(/bookings/);
   const card = page.locator(".booking-row").filter({ hasText: room.title });
@@ -105,8 +104,8 @@ test("настоящий API: регистрация, создание, конф
     )
   ).json();
   expect(busy).toHaveLength(1);
-  page.on("dialog", (d) => d.accept());
   await card.getByRole("button", { name: "Отменить аренду" }).click();
+  await page.getByRole("button", { name: "Да, отменить" }).click();
   await expect(card.getByText("Отменено", { exact: true })).toBeVisible();
   const free = await (
     await request.get(
@@ -155,6 +154,7 @@ test("настоящий API: регистрация, создание, конф
   });
   await page.goBack();
   await active.getByRole("button", { name: "Принять помещение" }).click();
+  await page.getByRole("button", { name: "Да, принять" }).click();
   await expect(active.getByText("Завершено", { exact: true })).toBeVisible();
   expect(
     (

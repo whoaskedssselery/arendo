@@ -1,16 +1,19 @@
+import { CalendarCheckIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import { categoriesQuery, client } from "../query";
 import type { Room } from "../types";
 import { ErrorBox, Field, Pager, RoomCard, State } from "../ui";
+
 export default function Owner() {
   const [page, setPage] = useState(1);
   const rooms = useQuery({
     queryKey: ["rooms", "owner", page],
     queryFn: ({ signal }) =>
-      request<Room[]>(`/rooms/owned?${queryString({ page, pageSize: 6 })}`, {
+      request<Room[]>(`/rooms/owned?${queryString({ page, pageSize: 8 })}`, {
         signal,
       }),
     staleTime: 45000,
@@ -18,7 +21,10 @@ export default function Owner() {
   const categories = useQuery(categoriesQuery);
   const mutation = useMutation({
     mutationFn: (data: unknown) => post("/rooms", data),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["rooms"] }),
+    onSuccess: () => {
+      toast.success("Помещение добавлено.");
+      return client.invalidateQueries({ queryKey: ["rooms"] });
+    },
   });
   function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,38 +34,28 @@ export default function Owner() {
     ) as Record<string, string>;
     for (const k of ["categoryId", "areaM2", "capacity", "pricePerHour"])
       d[k] = Number(d[k]);
+    if (d.pricePerDay) d.pricePerDay = Number(d.pricePerDay);
+    else delete d.pricePerDay;
     mutation.mutate(d, { onSuccess: () => f.reset() });
   }
   return (
     <>
-      <p className="eyebrow">ПРОСТРАНСТВА ПОД ВАШИМ УПРАВЛЕНИЕМ</p>
-      <div className="section-title">
+      <div className="page-head">
         <h1>Кабинет владельца</h1>
         <Link className="button" to="/bookings">
+          <CalendarCheckIcon size={20} aria-hidden />
           Аренды и приёмка
         </Link>
       </div>
-      <State query={rooms}>
-        <div className="grid">
-          {rooms.data?.map((r) => (
-            <RoomCard key={r.id} room={r} />
-          ))}
-        </div>
-        {!rooms.data?.length && (
-          <p className="empty">У вас пока нет помещений.</p>
-        )}
-      </State>
-      <Pager
-        page={page}
-        setPage={setPage}
-        next={(rooms.data?.length ?? 0) === 6}
-      />
-      <details className="panel">
-        <summary>Добавить помещение</summary>
+      <details className="panel add-room">
+        <summary>
+          <PlusIcon weight="bold" aria-hidden />
+          Добавить помещение
+        </summary>
         <form onSubmit={create} className="form-grid">
           <Field label="Название" name="title" required maxLength={150} />
           <Field label="Адрес" name="address" required maxLength={255} />
-          <label>
+          <label className="field">
             Категория
             <select aria-label="Категория" name="categoryId" required>
               {categories.data?.map((c) => (
@@ -85,12 +81,19 @@ export default function Owner() {
             required
           />
           <Field
-            label="Цена за час"
+            label="Цена за час, ₽"
             name="pricePerHour"
             type="number"
             min="0.01"
             step="0.01"
             required
+          />
+          <Field
+            label="Цена за сутки, ₽ (необязательно)"
+            name="pricePerDay"
+            type="number"
+            min="0.01"
+            step="0.01"
           />
           <Field label="Описание" name="description" />
           <button
@@ -100,9 +103,23 @@ export default function Owner() {
             Добавить
           </button>
           <ErrorBox error={mutation.error} />
-          {mutation.isSuccess && <p role="status">Помещение добавлено.</p>}
         </form>
       </details>
+      <State query={rooms} skeleton="cards">
+        <div className="grid">
+          {rooms.data?.map((r, index) => (
+            <RoomCard key={r.id} room={r} index={index} />
+          ))}
+        </div>
+        {!rooms.data?.length && (
+          <p className="empty">У вас пока нет помещений.</p>
+        )}
+      </State>
+      <Pager
+        page={page}
+        setPage={setPage}
+        next={(rooms.data?.length ?? 0) === 8}
+      />
     </>
   );
 }

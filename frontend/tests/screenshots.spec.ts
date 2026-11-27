@@ -25,7 +25,7 @@ test("галерея экранов для согласования с тимл�
     await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();
   }
   await page.goto("/");
-  await expect(page.locator(".room-card")).toHaveCount(6);
+  await expect(page.locator(".room-card")).toHaveCount(8);
   await shot("catalog-desktop");
   await page.goto("/rooms/1");
   await expect(
@@ -46,7 +46,7 @@ test("галерея экранов для согласования с тимл�
   );
   await shot("bookings-desktop");
   await login("owner");
-  await expect(page.locator(".room-card")).toHaveCount(6);
+  await expect(page.locator(".room-card")).toHaveCount(8);
   await shot("owner-desktop");
   await page.goto("/tenants/1");
   await expect(
@@ -59,7 +59,7 @@ test("галерея экранов для согласования с тимл�
   await page.getByRole("button", { name: "Выйти" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.locator(".room-card")).toHaveCount(6);
+  await expect(page.locator(".room-card")).toHaveCount(8);
   await shot("catalog-mobile");
   await page.goto("/rooms/1");
   await expect(page.locator(".calendar button").first()).toBeVisible();

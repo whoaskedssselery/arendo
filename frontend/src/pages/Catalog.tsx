@@ -1,11 +1,53 @@
+import {
+  BuildingsIcon,
+  CameraIcon,
+  DesktopTowerIcon,
+  MagnifyingGlassIcon,
+  PackageIcon,
+  PresentationChartIcon,
+  SquaresFourIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { queryString, request } from "../api";
-import { roomImages } from "../images";
+import DateTimeField from "../DateTimeField";
 import { categoriesQuery } from "../query";
-import type { Page, Room } from "../types";
-import { ErrorBox, Field, RoomCard, State } from "../ui";
+import type { Category, Page, Room } from "../types";
+import { ErrorBox, Field, money, Pager, RoomCard, State } from "../ui";
+
+const pageSize = 8;
+
+interface CategoryOption {
+  id: string;
+  name: string;
+  price?: number;
+}
+const allCategories: CategoryOption = { id: "", name: "Все" };
+const toOption = (c: Category): CategoryOption => ({
+  id: String(c.id),
+  name: c.name,
+  price: c.basePricePerHour,
+});
+const categoryIcon = ({ id, name }: CategoryOption) => {
+  if (!id) return SquaresFourIcon;
+  if (/склад/i.test(name)) return PackageIcon;
+  if (/ковор/i.test(name)) return DesktopTowerIcon;
+  if (/перегов|конферен|зал/i.test(name)) return PresentationChartIcon;
+  if (/студи|фото/i.test(name)) return CameraIcon;
+  return BuildingsIcon;
+};
+
+const toInput = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(+d - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+};
+
 export default function Catalog() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("q") || "");
@@ -35,190 +77,203 @@ export default function Catalog() {
     queryKey: ["rooms", values],
     queryFn: ({ signal }) =>
       request<Page<Room>>(
-        `/rooms?${queryString({ ...values, page, pageSize: 6 })}`,
+        `/rooms?${queryString({ ...values, page, pageSize })}`,
         { signal },
       ),
     staleTime: 45000,
   });
+  const selected = params.get("categoryId") || "";
   return (
     <>
-      <section className="hero">
-        <div>
-          <p className="eyebrow">ВАШИ ПЛАНЫ. НАШИ ПРОСТРАНСТВА.</p>
-          <h1>
-            Найдите место,
-            <br />
-            где всё получится.
-          </h1>
-          <p>
-            Для работы, встреч и важных событий.
-            <br />
-            Выберите пространство и удобное время.
-          </p>
-        </div>
-        <div className="hero-art">
-          <img src={roomImages[0]} alt="Светлое пространство для встреч" />
-          <span>Новые идеи начинаются с места</span>
-        </div>
-      </section>
-      <section aria-labelledby="catalog-title">
-        <div className="section-title">
-          <div>
-            <p className="eyebrow">ВЫБИРАЙТЕ ПОД СВОЙ РИТМ</p>
-            <h2 id="catalog-title">Пространства</h2>
+      <h1 className="catalog-title">Помещения по часам и суткам</h1>
+      <SearchBar
+        params={params}
+        apply={setParams}
+        search={search}
+        setSearch={setSearch}
+        set={set}
+      />
+      <fieldset className="categories">
+        <legend className="sr-only">Категория</legend>
+        {[allCategories, ...(categories.data ?? []).map(toOption)].map((c) => {
+          const Icon = categoryIcon(c);
+          const active = selected === c.id;
+          return (
+            <button
+              type="button"
+              key={c.id || "all"}
+              className="category"
+              aria-pressed={active}
+              onClick={() => set("categoryId", c.id)}
+            >
+              <Icon
+                size={26}
+                weight={active ? "fill" : "regular"}
+                aria-hidden
+              />
+              <span>{c.name}</span>
+              <small>{c.price ? `от ${money(c.price)}` : "любая цена"}</small>
+              {active && (
+                <motion.i className="underline" layoutId="category-line" />
+              )}
+            </button>
+          );
+        })}
+      </fieldset>
+      <ErrorBox error={categories.error} />
+      <div className="toolbar">
+        <p aria-live="polite">Найдено: {data.data?.total ?? "…"}</p>
+        <Field
+          label="Цена от, ₽/час"
+          type="number"
+          min="0"
+          value={params.get("priceMin") || ""}
+          onChange={(e) => set("priceMin", e.target.value)}
+        />
+        <Field
+          label="Цена до, ₽/час"
+          type="number"
+          min="0"
+          value={params.get("priceMax") || ""}
+          onChange={(e) => set("priceMax", e.target.value)}
+        />
+        <label className="field">
+          Сортировка
+          <select
+            aria-label="Сортировка"
+            value={params.get("sort") || "price_asc"}
+            onChange={(e) => set("sort", e.target.value)}
+          >
+            <option value="price_asc">Сначала дешевле</option>
+            <option value="price_desc">Сначала дороже</option>
+            <option value="rating_desc">По рейтингу</option>
+            <option value="new">Сначала новые</option>
+          </select>
+        </label>
+      </div>
+      <State query={data} skeleton="cards">
+        {data.data?.items.length ? (
+          <div className="grid">
+            {data.data.items.map((room, index) => (
+              <RoomCard key={room.id} room={room} index={index} />
+            ))}
           </div>
-          <span>{data.data?.total ?? "…"} вариантов</span>
-        </div>
-        <div className="filters">
-          <Field
-            label="Поиск"
-            placeholder="Название или адрес"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <label>
-            Категория
-            <select
-              aria-label="Категория"
-              value={params.get("categoryId") || ""}
-              onChange={(e) => set("categoryId", e.target.value)}
+        ) : (
+          <div className="empty">
+            <MagnifyingGlassIcon size={40} aria-hidden />
+            <h2>Ничего не найдено</h2>
+            <p>Уберите часть фильтров или выберите другое время.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setParams({});
+              }}
             >
-              <option value="">Все категории</option>
-              {categories.data?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field
-            label="Цена от, ₽/час"
-            type="number"
-            min="0"
-            value={params.get("priceMin") || ""}
-            onChange={(e) => set("priceMin", e.target.value)}
-          />
-          <Field
-            label="Цена до, ₽/час"
-            type="number"
-            min="0"
-            value={params.get("priceMax") || ""}
-            onChange={(e) => set("priceMax", e.target.value)}
-          />
-          <Field
-            label="Гостей от"
-            type="number"
-            min="1"
-            value={params.get("capacity") || ""}
-            onChange={(e) => set("capacity", e.target.value)}
-          />
-          <label>
-            Сортировка
-            <select
-              aria-label="Сортировка"
-              value={params.get("sort") || "price_asc"}
-              onChange={(e) => set("sort", e.target.value)}
-            >
-              <option value="price_asc">Сначала дешевле</option>
-              <option value="price_desc">Сначала дороже</option>
-              <option value="rating_desc">По рейтингу</option>
-              <option value="new">Сначала новые</option>
-            </select>
-          </label>
-        </div>
-        <AvailabilityFilter params={params} apply={(p) => setParams(p)} />
-        <ErrorBox error={categories.error} />
-        <State query={data}>
-          {data.data?.items.length ? (
-            <div className="grid">
-              {data.data.items.map((room) => (
-                <RoomCard key={room.id} room={room} />
-              ))}
-            </div>
-          ) : (
-            <div className="empty">
-              <h3>Ничего не найдено</h3>
-              <p>Попробуйте изменить фильтры.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setParams({});
-                }}
-              >
-                Сбросить фильтры
-              </button>
-            </div>
-          )}
-        </State>
-        <div className="pagination">
-          <button
-            type="button"
-            disabled={page === 1}
-            onClick={() => set("page", String(page - 1))}
-          >
-            Назад
-          </button>
-          <span>Страница {page}</span>
-          <button
-            type="button"
-            disabled={!data.data || page * 6 >= data.data.total}
-            onClick={() => set("page", String(page + 1))}
-          >
-            Далее
-          </button>
-        </div>
-      </section>
+              Сбросить фильтры
+            </button>
+          </div>
+        )}
+      </State>
+      <Pager
+        page={page}
+        setPage={(n) => set("page", String(n))}
+        next={Boolean(data.data && page * pageSize < data.data.total)}
+      />
     </>
   );
 }
-function AvailabilityFilter({
+
+function SearchBar({
   params,
   apply,
+  search,
+  setSearch,
+  set,
 }: {
   params: URLSearchParams;
   apply: (p: URLSearchParams) => void;
+  search: string;
+  setSearch: (value: string) => void;
+  set: (key: string, value: string) => void;
 }) {
   const [error, setError] = useState<unknown>();
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
-    const from = new Date(String(d.get("from"))),
-      to = new Date(String(d.get("to")));
-    if (!(from < to)) {
-      setError(new Error("Окончание должно быть позже начала."));
-      return;
-    }
+    const fromValue = String(d.get("from")),
+      toValue = String(d.get("to"));
     const p = new URLSearchParams(params);
-    p.set("from", from.toISOString());
-    p.set("to", to.toISOString());
+    search ? p.set("q", search) : p.delete("q");
+    if (fromValue || toValue) {
+      const from = new Date(fromValue),
+        to = new Date(toValue);
+      if (!(from < to)) {
+        setError(new Error("Укажите начало и конец: конец позже начала."));
+        return;
+      }
+      p.set("from", from.toISOString());
+      p.set("to", to.toISOString());
+    } else {
+      p.delete("from");
+      p.delete("to");
+    }
     p.set("page", "1");
     setError(undefined);
     apply(p);
   }
   return (
-    <>
-      <form className="period-filter" onSubmit={submit}>
-        <Field label="Свободно с" name="from" type="datetime-local" required />
-        <Field label="Свободно до" name="to" type="datetime-local" required />
-        <button type="submit">Проверить доступность</button>
-        {params.has("from") && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              const p = new URLSearchParams(params);
-              p.delete("from");
-              p.delete("to");
-              p.set("page", "1");
-              apply(p);
-            }}
-          >
-            Любое время
-          </button>
-        )}
+    <div className="search-sticky">
+      <form className="searchbar" onSubmit={submit}>
+        <Field
+          label="Поиск"
+          placeholder="Название или адрес"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <DateTimeField
+          key={`from-${params.get("from")}`}
+          label="Свободно с"
+          name="from"
+          defaultValue={toInput(params.get("from"))}
+        />
+        <DateTimeField
+          key={`to-${params.get("to")}`}
+          label="Свободно до"
+          name="to"
+          align="right"
+          defaultValue={toInput(params.get("to"))}
+        />
+        <Field
+          label="Гостей от"
+          type="number"
+          min="1"
+          placeholder="Сколько"
+          value={params.get("capacity") || ""}
+          onChange={(e) => set("capacity", e.target.value)}
+        />
+        <button type="submit" className="search-button">
+          <MagnifyingGlassIcon size={20} weight="bold" aria-hidden />
+          <span>Найти</span>
+        </button>
       </form>
+      {params.has("from") && (
+        <button
+          type="button"
+          className="chip"
+          onClick={() => {
+            const p = new URLSearchParams(params);
+            p.delete("from");
+            p.delete("to");
+            p.set("page", "1");
+            apply(p);
+          }}
+        >
+          Любое время
+          <XIcon weight="bold" aria-hidden />
+        </button>
+      )}
       <ErrorBox error={error} />
-    </>
+    </div>
   );
 }

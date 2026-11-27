@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { pickDateTime } from "./helpers";
 
 async function login(page: Page, role = "tenant") {
   await page.goto("/login");
@@ -7,23 +8,21 @@ async function login(page: Page, role = "tenant") {
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();
 }
-const local = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:00`;
 test("каталог: поиск, пагинация, фильтры, пустое состояние", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator(".room-card")).toHaveCount(6);
+  await expect(page.locator(".room-card")).toHaveCount(8);
   await page.getByRole("button", { name: "Далее", exact: true }).click();
-  await expect(page.locator(".room-card")).toHaveCount(3);
+  await expect(page.locator(".room-card")).toHaveCount(1);
   await page.getByLabel("Поиск", { exact: true }).fill("Фокус");
   await expect(page.locator(".room-card")).toHaveCount(1);
   await expect(page).toHaveURL(/q=/);
   await page.getByLabel("Поиск", { exact: true }).fill("нет такого помещения");
   await expect(page.getByText("Ничего не найдено")).toBeVisible();
   await page.getByRole("button", { name: "Сбросить фильтры" }).click();
-  await expect(page.locator(".room-card")).toHaveCount(6);
-  await page.getByLabel("Категория", { exact: true }).selectOption("3");
+  await expect(page.locator(".room-card")).toHaveCount(8);
+  await page.getByRole("button", { name: /Фотостудии/ }).click();
   await expect(page.locator(".room-card")).toHaveCount(3);
 });
 test("найти → арендовать → отменить; календарь обновляется", async ({
@@ -38,14 +37,14 @@ test("найти → арендовать → отменить; календар
   start.setDate(start.getDate() + 4);
   start.setHours(10, 0, 0, 0);
   const end = new Date(+start + 3600000);
-  await page.getByLabel("Начало аренды", { exact: true }).fill(local(start));
-  await page.getByLabel("Окончание аренды", { exact: true }).fill(local(end));
+  await pickDateTime(page, "Начало аренды", start);
+  await pickDateTime(page, "Окончание аренды", end);
   await page.getByRole("button", { name: "Арендовать", exact: true }).click();
   await expect(page).toHaveURL(/bookings/);
   const booking = page.locator(".booking-row").last();
   await expect(booking.getByText("Ожидает", { exact: true })).toBeVisible();
-  page.on("dialog", (d) => d.accept());
   await booking.getByRole("button", { name: "Отменить аренду" }).click();
+  await page.getByRole("button", { name: "Да, отменить" }).click();
   await expect(booking.getByText("Отменено", { exact: true })).toBeVisible();
   await expect(
     booking.getByRole("button", { name: "Отменить аренду" }),
@@ -56,7 +55,7 @@ test("владелец: помещения, приёмка и карточка �
   await expect(
     page.getByRole("heading", { name: "Кабинет владельца" }),
   ).toBeVisible();
-  await expect(page.locator(".room-card")).toHaveCount(6);
+  await expect(page.locator(".room-card")).toHaveCount(8);
   await page.getByRole("link", { name: "Аренды и приёмка" }).click();
   const active = page
     .locator(".booking-row")
@@ -67,8 +66,8 @@ test("владелец: помещения, приёмка и карточка �
     page.getByRole("heading", { name: "Анна Соколова" }),
   ).toBeVisible();
   await page.goBack();
-  page.on("dialog", (d) => d.accept());
   await active.getByRole("button", { name: "Принять помещение" }).click();
+  await page.getByRole("button", { name: "Да, принять" }).click();
   await expect(active.getByText("Завершено", { exact: true })).toBeVisible();
 });
 test("регистрация арендатора и защита роли", async ({ page }) => {
@@ -90,12 +89,13 @@ test("администратор блокирует и разблокирует 
 }) => {
   await login(page, "admin");
   const row = page.getByRole("row").filter({ hasText: "tenant@arendo.test" });
-  page.on("dialog", (d) => d.accept());
   await row.getByRole("button", { name: "Заблокировать", exact: true }).click();
+  await page.getByRole("button", { name: "Да, заблокировать" }).click();
   await expect(row.getByText("Заблокирован", { exact: true })).toBeVisible();
   await row
     .getByRole("button", { name: "Разблокировать", exact: true })
     .click();
+  await page.getByRole("button", { name: "Да, разблокировать" }).click();
   await expect(row.getByText("Активен", { exact: true })).toBeVisible();
 });
 test("адаптив 360–1440 и отсутствие ошибок JavaScript", async ({ page }) => {

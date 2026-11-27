@@ -1,12 +1,16 @@
+import { HouseLineIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { demo, post, setSession } from "../api";
+import { post, setSession } from "../api";
+import { authImage } from "../images";
 import { client } from "../query";
 import type { Session } from "../types";
-import { ErrorBox, Field } from "../ui";
+import { ErrorBox, Field, PasswordField } from "../ui";
+
 export default function Auth({ register = false }: { register?: boolean }) {
   const nav = useNavigate();
+  const [validation, setValidation] = useState("");
   const mutation = useMutation({
     mutationFn: (body: unknown) =>
       post<Session>(register ? "/auth/register" : "/auth/login", body),
@@ -36,77 +40,85 @@ export default function Auth({ register = false }: { register?: boolean }) {
     setValidation("");
     mutation.mutate(body);
   }
-  const [validation, setValidation] = useState("");
   return (
-    <section className="auth panel">
-      <p className="eyebrow">ДОБРО ПОЖАЛОВАТЬ В ARENDO</p>
-      <h1>{register ? "Создать аккаунт" : "Рады видеть вас снова"}</h1>
-      <p>
-        {register
-          ? "Находите пространство или сдавайте своё."
-          : "Войдите, чтобы управлять своими арендами."}
-      </p>
-      <form onSubmit={submit}>
-        {register && (
-          <>
-            <Field
-              label="Имя и фамилия"
-              name="fullName"
-              required
-              maxLength={150}
-            />
-            <Field
-              label="Телефон (необязательно)"
-              name="phone"
-              type="tel"
-              pattern="\+?[0-9]{10,15}"
-            />
-            <label>
-              Я хочу
-              <select aria-label="Я хочу" name="role">
-                <option value="tenant">Арендовать пространство</option>
-                <option value="owner">Сдавать помещения</option>
-              </select>
-            </label>
-          </>
-        )}
-        <Field
-          label="Email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-        />
-        <Field
-          label="Пароль"
-          name="password"
-          type="password"
-          required
-          minLength={register ? 8 : 1}
-          autoComplete={register ? "new-password" : "current-password"}
-        />
-        <ErrorBox error={validation ? new Error(validation) : mutation.error} />
-        <button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending
-            ? "Подождите…"
-            : register
-              ? "Зарегистрироваться"
-              : "Войти"}
-        </button>
-      </form>
-      <p>
-        {register ? "Уже есть аккаунт?" : "Первый раз здесь?"}{" "}
-        <Link to={register ? "/login" : "/register"}>
-          {register ? "Войти" : "Регистрация"}
-        </Link>
-      </p>
-      {demo && (
-        <div className="demo-help">
-          Демо: tenant@arendo.test, owner@arendo.test или admin@arendo.test
-          <br />
-          Пароль: Arendo123!
-        </div>
-      )}
+    <section className="auth">
+      <img src={authImage} alt="" />
+      <div className="auth-body">
+        <h1>{register ? "Создать аккаунт" : "Вход"}</h1>
+        <p>
+          {register
+            ? "Арендуйте помещения или сдавайте свои."
+            : "Войдите, чтобы управлять арендами."}
+        </p>
+        <form onSubmit={submit}>
+          {register && (
+            <>
+              <fieldset className="roles">
+                <legend>Я хочу</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="tenant"
+                    defaultChecked
+                  />
+                  <MagnifyingGlassIcon size={24} aria-hidden />
+                  Арендовать
+                </label>
+                <label>
+                  <input type="radio" name="role" value="owner" />
+                  <HouseLineIcon size={24} aria-hidden />
+                  Сдавать
+                </label>
+              </fieldset>
+              <Field
+                label="Имя и фамилия"
+                name="fullName"
+                required
+                maxLength={150}
+                autoComplete="name"
+              />
+              <Field
+                label="Телефон (необязательно)"
+                name="phone"
+                type="tel"
+                pattern="\+?[0-9]{10,15}"
+                autoComplete="tel"
+              />
+            </>
+          )}
+          <Field
+            label="Email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+          />
+          <PasswordField
+            label="Пароль"
+            name="password"
+            required
+            minLength={register ? 8 : 1}
+            autoComplete={register ? "new-password" : "current-password"}
+          />
+          <ErrorBox
+            error={validation ? new Error(validation) : mutation.error}
+          />
+          <button type="submit" className="wide" disabled={mutation.isPending}>
+            {mutation.isPending
+              ? "Подождите…"
+              : register
+                ? "Зарегистрироваться"
+                : "Войти"}
+          </button>
+        </form>
+        <p>
+          {register ? "Уже есть аккаунт?" : "Нет аккаунта?"}{" "}
+          <Link className="text-link" to={register ? "/login" : "/register"}>
+            {register ? "Войти" : "Регистрация"}
+          </Link>
+        </p>
+      </div>
     </section>
   );
 }

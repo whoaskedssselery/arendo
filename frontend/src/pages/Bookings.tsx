@@ -1,18 +1,26 @@
+import { CalendarXIcon, ClockIcon, UserIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import { invalidateBookings, roomQuery } from "../query";
 import type { Booking } from "../types";
 import {
+  ConfirmButton,
   date,
   ErrorBox,
   labels,
+  mainPhoto,
   money,
   Pager,
+  RoomPhoto,
   State,
+  StatusBadge,
   useRequiredSession,
 } from "../ui";
+
 export default function Bookings() {
   const s = useRequiredSession();
   const [status, setStatus] = useState("");
@@ -28,29 +36,27 @@ export default function Bookings() {
   });
   return (
     <>
-      <p className="eyebrow">ЛИЧНЫЙ КАБИНЕТ</p>
-      <div className="section-title">
-        <h1>{s.user.role === "tenant" ? "Мои аренды" : "Аренды помещений"}</h1>
-        <label>
-          Статус
-          <select
-            aria-label="Статус"
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
+      <h1>{s.user.role === "tenant" ? "Мои аренды" : "Аренды помещений"}</h1>
+      <fieldset className="tabs">
+        <legend className="sr-only">Статус</legend>
+        {[["", "Все"], ...Object.entries(labels)].map(([value, text]) => (
+          <button
+            type="button"
+            key={value || "all"}
+            aria-pressed={status === value}
+            onClick={() => {
+              setStatus(value);
               setPage(1);
             }}
           >
-            <option value="">Все статусы</option>
-            {Object.entries(labels).map(([v, t]) => (
-              <option key={v} value={v}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <State query={data}>
+            {text}
+            {status === value && (
+              <motion.i className="underline" layoutId="tab-line" />
+            )}
+          </button>
+        ))}
+      </fieldset>
+      <State query={data} skeleton="rows">
         {data.data?.length ? (
           <div className="booking-list">
             {data.data.map((b) => (
@@ -59,9 +65,11 @@ export default function Bookings() {
           </div>
         ) : (
           <div className="empty">
+            <CalendarXIcon size={40} aria-hidden />
             <h2>Здесь пока пусто</h2>
+            <p>Выберите помещение и время в каталоге.</p>
             <Link className="button" to="/">
-              Найти пространство
+              Найти помещение
             </Link>
           </div>
         )}
@@ -74,60 +82,76 @@ export default function Bookings() {
     </>
   );
 }
+
 function BookingCard({ b }: { b: Booking }) {
   const s = useRequiredSession();
   const room = useQuery(roomQuery(b.roomId));
   const action = useMutation({
-    mutationFn: (type: string) => post(`/bookings/${b.id}/${type}`),
-    onSuccess: () => invalidateBookings(),
+    mutationFn: (type: "cancel" | "complete") =>
+      post(`/bookings/${b.id}/${type}`),
+    onSuccess: async (_, type) => {
+      toast.success(
+        type === "cancel" ? "Аренда отменена." : "Помещение принято.",
+      );
+      await invalidateBookings();
+    },
   });
+  const canCancel =
+    (b.status === "pending" && s.user.role !== "owner") ||
+    (b.status === "active" && s.user.role !== "tenant");
+  const title = room.data?.title || `Помещение №${b.roomId}`;
   return (
-    <article className="panel booking-row" data-booking-id={b.id}>
-      <div>
-        <span className={`badge ${b.status}`}>{labels[b.status]}</span>
-        {b.isOverdue && <span className="error">Просрочена</span>}
+    <article className="booking-row" data-booking-id={b.id}>
+      <RoomPhoto
+        className="thumb"
+        url={room.data && mainPhoto(room.data)}
+        title={title}
+        seed={b.roomId}
+        lazy
+      />
+      <div className="booking-info">
         <h2>
-          <Link to={`/rooms/${b.roomId}`}>
-            {room.data?.title || `Помещение №${b.roomId}`}
-          </Link>
+          <Link to={`/rooms/${b.roomId}`}>{title}</Link>
         </h2>
         <p>
+          <ClockIcon aria-hidden />
           {date(b.startAt)} — {date(b.endAt)}
         </p>
-        <b>{money(b.totalPrice)}</b>
         {s.user.role !== "tenant" && (
           <p>
-            <Link to={`/tenants/${b.tenantId}`}>
+            <UserIcon aria-hidden />
+            <Link className="text-link" to={`/tenants/${b.tenantId}`}>
               Карточка арендатора №{b.tenantId}
             </Link>
           </p>
         )}
+        <b>{money(b.totalPrice)}</b>
       </div>
-      <div>
-        {((b.status === "pending" && s.user.role !== "owner") ||
-          (b.status === "active" && s.user.role !== "tenant")) && (
-          <button
-            type="button"
+      <div className="booking-side">
+        <StatusBadge status={b.status} />
+        {b.isOverdue && <span className="badge overdue">Просрочена</span>}
+        {canCancel && (
+          <ConfirmButton
             className="secondary"
             disabled={action.isPending}
-            onClick={() => {
-              if (window.confirm("Отменить аренду?")) action.mutate("cancel");
-            }}
+            title="Отменить аренду?"
+            text={`${title}, ${date(b.startAt)}. Вернуть отменённую аренду нельзя.`}
+            confirmLabel="Да, отменить"
+            onConfirm={() => action.mutate("cancel")}
           >
             Отменить аренду
-          </button>
+          </ConfirmButton>
         )}
         {b.status === "active" && s.user.role !== "tenant" && (
-          <button
-            type="button"
+          <ConfirmButton
             disabled={action.isPending}
-            onClick={() => {
-              if (window.confirm("Подтвердить приём помещения?"))
-                action.mutate("complete");
-            }}
+            title="Принять помещение?"
+            text="Аренда завершится. Если срок прошёл, начислится штраф."
+            confirmLabel="Да, принять"
+            onConfirm={() => action.mutate("complete")}
           >
             Принять помещение
-          </button>
+          </ConfirmButton>
         )}
         <ErrorBox error={action.error} />
       </div>

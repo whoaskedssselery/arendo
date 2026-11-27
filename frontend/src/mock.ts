@@ -1,7 +1,7 @@
 // Explicit demo adapter. Never used as a fallback for a failed API request.
 
 import { ApiError } from "./api";
-import { roomImages } from "./images";
+import { photoFor } from "./images";
 import type { Booking, Category, Room, Session, User } from "./types";
 export const categories: Category[] = [
   { id: 1, name: "Лофты", basePricePerHour: 1800 },
@@ -34,7 +34,14 @@ const rooms: Room[] = names.map((title, i) => ({
   isActive: true,
   avgRating: 4.7,
   reviewsCount: 12 + i,
-  photos: [{ id: i + 1, url: roomImages[i % 3], isMain: true, sortOrder: 0 }],
+  photos: [
+    {
+      id: i + 1,
+      url: photoFor(title, Math.floor(i / 3)),
+      isMain: true,
+      sortOrder: 0,
+    },
+  ],
 }));
 const users: User[] = [
   {
