@@ -1231,6 +1231,11 @@ button.hour.selected:hover {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 20px;
+}
+.dialog textarea {
+  width: 100%;
+  resize: vertical;
 }
 
 /* ---------- Новое помещение без отзывов ---------- */

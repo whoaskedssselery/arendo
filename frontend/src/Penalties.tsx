@@ -43,7 +43,7 @@ export function Penalties({
   });
   if (!manage && !penalties.data?.length && !penalties.error) return null;
   return (
-    <section className="panel">
+    <section className="panel spaced">
       <h2>Штрафы</h2>
       <ErrorBox error={penalties.error || settle.error} />
       {penalties.data?.length === 0 && <p className="muted">Штрафов нет.</p>}

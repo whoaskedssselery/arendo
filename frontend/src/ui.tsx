@@ -15,7 +15,7 @@ import {
 import { motion } from "motion/react";
 import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { getSession } from "./api";
 import { photoFor } from "./images";
 import { client, roomQuery } from "./query";
@@ -290,6 +290,7 @@ export function RoomCard({
   room: Room;
   index?: number;
 }) {
+  const { pathname, search } = useLocation();
   return (
     <motion.div
       className="card-cell"
@@ -304,6 +305,7 @@ export function RoomCard({
       <Link
         className="room-card"
         to={`/rooms/${r.id}`}
+        state={{ from: pathname + search }}
         onMouseEnter={() => client.prefetchQuery(roomQuery(r.id))}
         onFocus={() => client.prefetchQuery(roomQuery(r.id))}
       >

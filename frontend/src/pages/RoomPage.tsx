@@ -9,7 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import DateTimeField from "../DateTimeField";
@@ -59,11 +59,13 @@ export default function RoomPage() {
 
 function RoomDetail({ room: r }: { room: Room }) {
   const [period, setPeriod] = useState<Period>({ startAt: "", endAt: "" });
+  // Назад ведёт туда, откуда открыли карточку; по прямой ссылке — в каталог.
+  const from: string = useLocation().state?.from ?? "/";
   return (
     <>
-      <Link className="back" to="/">
+      <Link className="back" to={from}>
         <ArrowLeftIcon weight="bold" aria-hidden />
-        Каталог пространств
+        {from.startsWith("/owner") ? "Мои помещения" : "Каталог пространств"}
       </Link>
       <h1>{r.title}</h1>
       <p className="detail-sub">

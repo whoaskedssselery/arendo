@@ -1,7 +1,7 @@
-import { CalendarCheckIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
+import type { FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { post, queryString, request } from "../api";
 import { categoriesQuery, client } from "../query";
@@ -9,7 +9,10 @@ import type { Room } from "../types";
 import { ErrorBox, Field, Pager, RoomCard, State } from "../ui";
 
 export default function Owner() {
-  const [page, setPage] = useState(1);
+  // Номер страницы в адресе, чтобы он сохранялся при возврате из карточки.
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const setPage = (n: number) => setParams(n > 1 ? { page: String(n) } : {});
   const rooms = useQuery({
     queryKey: ["rooms", "owner", page],
     queryFn: ({ signal }) =>
@@ -43,7 +46,6 @@ export default function Owner() {
       <div className="page-head">
         <h1>Кабинет владельца</h1>
         <Link className="button" to="/bookings">
-          <CalendarCheckIcon size={20} aria-hidden />
           Аренды и приёмка
         </Link>
       </div>
