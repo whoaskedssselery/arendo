@@ -16,7 +16,7 @@ export class DashboardService {
   async status(id: number, actor: UserRow, input: StatusDto) {
     if (String(id) === actor.id)
       throw new ForbiddenException("Cannot change your own status.");
-    const row = await this.repo.status(id, input.status);
+    const row = await this.repo.status(id, input.status, actor.id);
     if (!row) throw new NotFoundException("User not found.");
     return userResponse(row);
   }

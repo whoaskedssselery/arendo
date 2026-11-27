@@ -14,13 +14,20 @@ export class DashboardRepository {
     );
     return rows;
   }
-  async status(id: number, status: string) {
+  async status(id: number, status: string, actorId: string) {
     return this.db.transaction(async (tx) => {
       const { rows } = await tx.query<UserRow>(
         `UPDATE users SET status = $2 WHERE id = $1
         RETURNING id, email, full_name, phone, role, status, created_at`,
         [id, status],
       );
+      // Разблокировка снимает и глобальный бан (в том числе автоматический), иначе аренда осталась бы запрещена.
+      if (status === "active")
+        await tx.query(
+          `UPDATE blacklist_entries SET revoked_at = now(), revoked_by = $2
+           WHERE tenant_id = $1 AND owner_id IS NULL AND entry_type = 'ban' AND revoked_at IS NULL`,
+          [id, actorId],
+        );
       if (status === "banned")
         await tx.query(
           "UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
@@ -31,7 +38,11 @@ export class DashboardRepository {
   }
   async tenant(id: number, actor: UserRow) {
     const { rows } = await this.db.pool.query(
-      `SELECT u.id AS "tenantId", u.full_name AS "fullName",
+      `SELECT u.id AS "tenantId", u.full_name AS "fullName", u.email, u.phone,
+       (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', x.id, 'roomTitle', x.title, 'startAt', x.start_at,
+           'endAt', x.end_at, 'status', x.status) ORDER BY x.start_at DESC), '[]'::jsonb)
+         FROM (SELECT b.id, r.title, b.start_at, b.end_at, b.status FROM bookings b JOIN rooms r ON r.id = b.room_id
+               WHERE b.tenant_id = u.id AND ($2 = 'admin' OR r.owner_id = $3) ORDER BY b.start_at DESC LIMIT 20) x) AS history,
        (SELECT count(*)::int FROM bookings b WHERE b.tenant_id = u.id) AS "bookingsTotal",
        (SELECT count(*)::int FROM bookings b WHERE b.tenant_id = u.id AND b.status = 'completed') AS "completedCount",
        (SELECT count(*)::int FROM bookings b WHERE b.tenant_id = u.id AND b.status = 'cancelled') AS "cancelledCount",

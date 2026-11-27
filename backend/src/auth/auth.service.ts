@@ -29,7 +29,7 @@ export class AuthService {
 
   async register(input: RegisterDto) {
     if (truncates(input.password)) {
-      throw new UnprocessableEntityException('Password must not exceed 72 UTF-8 bytes.');
+      throw new UnprocessableEntityException('Пароль должен занимать не более 72 байт.');
     }
 
     const passwordHash = await hash(input.password, passwordCost);
@@ -39,12 +39,12 @@ export class AuthService {
       return await this.repository.transaction(async (transaction) => {
         const user = await transaction.createUser(input, passwordHash);
         const sessionId = await transaction.createSession(user.id, hashRefreshToken(refreshToken));
-        if (!sessionId) throw new ForbiddenException('Account is blocked.');
+        if (!sessionId) throw new ForbiddenException('Аккаунт заблокирован.');
         return this.tokens(user, sessionId, refreshToken);
       });
     } catch (error) {
       if (error && typeof error === 'object' && 'constraint' in error && error.constraint === 'users_email_uq') {
-        throw new ConflictException('An account with this email already exists.');
+        throw new ConflictException('Этот email уже зарегистрирован.');
       }
       throw error;
     }
@@ -53,12 +53,12 @@ export class AuthService {
   async login({ email, password }: LoginDto) {
     const user = await this.repository.findUserByEmail(email);
     const matches = !truncates(password) && (await compare(password, user?.password_hash ?? dummyPasswordHash));
-    if (!matches || !user) throw new UnauthorizedException('Invalid email or password.');
-    if (user.status === 'banned') throw new ForbiddenException('Account is blocked.');
+    if (!matches || !user) throw new UnauthorizedException('Неверный email или пароль.');
+    if (user.status === 'banned') throw new ForbiddenException('Аккаунт заблокирован.');
 
     const refreshToken = randomBytes(32).toString('base64url');
     const sessionId = await this.repository.createSession(user.id, hashRefreshToken(refreshToken));
-    if (!sessionId) throw new ForbiddenException('Account is blocked.');
+    if (!sessionId) throw new ForbiddenException('Аккаунт заблокирован.');
     return this.tokens(user, sessionId, refreshToken);
   }
 
@@ -84,7 +84,7 @@ export class AuthService {
     }
     const user = await this.repository.findSessionUser(claims);
     if (!user) throw new UnauthorizedException('Session is invalid or revoked.');
-    if (user.status === 'banned') throw new ForbiddenException('Account is blocked.');
+    if (user.status === 'banned') throw new ForbiddenException('Аккаунт заблокирован.');
     return { id: claims.sid, user };
   }
 

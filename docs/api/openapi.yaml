@@ -21,6 +21,13 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /health:
+    get:
+      tags: [Admin]
+      summary: Проверка живости сервера и соединения с БД
+      security: []
+      responses:
+        '200': { description: OK }
   /auth/register:
     post:
       tags: [Auth]
@@ -244,6 +251,13 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
   /rooms/{id}/blocks:
+    get:
+      tags: [Rooms]
+      summary: Будущие и текущие закрытия помещения (владелец, admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Rooms]
       summary: Закрыть помещение на период (ремонт, уборка)

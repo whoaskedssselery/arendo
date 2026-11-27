@@ -16,7 +16,9 @@ export class BookingsRepository {
               b.status = 'active' AND b.end_at < now() AS is_overdue,
               COALESCE((SELECT jsonb_agg(jsonb_build_object(
                 'oldStatus', h.old_status, 'newStatus', h.new_status, 'changedAt', h.changed_at
-              ) ORDER BY h.changed_at, h.id) FROM booking_status_history h WHERE h.booking_id = b.id), '[]'::jsonb) AS history
+              ) ORDER BY h.changed_at, h.id) FROM booking_status_history h WHERE h.booking_id = b.id), '[]'::jsonb) AS history,
+              EXISTS(SELECT 1 FROM reviews rv WHERE rv.booking_id = b.id) AS has_review,
+              EXISTS(SELECT 1 FROM tenant_reviews tv WHERE tv.booking_id = b.id) AS has_tenant_review
        FROM bookings b JOIN rooms r ON r.id = b.room_id
        WHERE ($1::text = 'admin' OR ($1 = 'tenant' AND b.tenant_id = $2::bigint)
               OR ($1 = 'owner' AND r.owner_id = $2::bigint))
@@ -33,6 +35,24 @@ export class BookingsRepository {
       ],
     );
     return rows;
+  }
+
+  /** Одна аренда, только если она видна этому пользователю. */
+  async find(id: number, actor: UserRow): Promise<BookingRow | undefined> {
+    const { rows } = await this.database.pool.query<BookingRow>(
+      `SELECT b.id, b.room_id, b.tenant_id, b.start_at, b.end_at, b.status, b.total_price, b.actual_return_at,
+              b.status = 'active' AND b.end_at < now() AS is_overdue,
+              COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'oldStatus', h.old_status, 'newStatus', h.new_status, 'changedAt', h.changed_at
+              ) ORDER BY h.changed_at, h.id) FROM booking_status_history h WHERE h.booking_id = b.id), '[]'::jsonb) AS history,
+              EXISTS(SELECT 1 FROM reviews rv WHERE rv.booking_id = b.id) AS has_review,
+              EXISTS(SELECT 1 FROM tenant_reviews tv WHERE tv.booking_id = b.id) AS has_tenant_review
+       FROM bookings b JOIN rooms r ON r.id = b.room_id
+       WHERE b.id = $1 AND ($2::text = 'admin' OR ($2 = 'tenant' AND b.tenant_id = $3::bigint)
+                            OR ($2 = 'owner' AND r.owner_id = $3::bigint))`,
+      [id, actor.role, actor.id],
+    );
+    return rows.at(0);
   }
 
   transactionAs<T>(actorId: string, run: (transaction: BookingTransaction) => Promise<T>): Promise<T> {

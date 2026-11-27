@@ -17,6 +17,8 @@ export interface BookingRow {
   actual_return_at: Date | null;
   is_overdue: boolean;
   history: StatusChange[];
+  has_review?: boolean;
+  has_tenant_review?: boolean;
 }
 
 export interface BookingTarget {
@@ -38,6 +40,8 @@ export function bookingResponse(booking: BookingRow) {
     totalPrice: Number(booking.total_price),
     actualReturnAt: booking.actual_return_at?.toISOString() ?? null,
     isOverdue: booking.is_overdue,
+    hasReview: booking.has_review ?? false,
+    hasTenantReview: booking.has_tenant_review ?? false,
     history: booking.history.map(({ changedAt, ...status }) => ({
       ...status,
       changedAt: new Date(changedAt).toISOString(),

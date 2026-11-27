@@ -9,7 +9,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { validationPipe } from '../http/validation.pipe';
 import { AccessTokenGuard } from './access-token.guard';
 import { LoginDto, LogoutDto, RefreshDto, RegisterDto } from './auth.dto';
@@ -22,6 +22,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Header('Cache-Control', 'no-store')
   register(@Body() input: RegisterDto) {
     return this.auth.register(input);

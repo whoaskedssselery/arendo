@@ -6,6 +6,9 @@ import { BookingsModule } from './bookings/bookings.module';
 import { CategoriesModule } from './categories/categories.module';
 import { DatabaseModule } from './database/database.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health';
+import { ModerationModule } from './moderation/moderation';
+import { ReviewsModule } from './reviews/reviews';
 import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
@@ -20,6 +23,9 @@ import { RoomsModule } from './rooms/rooms.module';
     RoomsModule,
     BookingsModule,
     DashboardModule,
+    ReviewsModule,
+    ModerationModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

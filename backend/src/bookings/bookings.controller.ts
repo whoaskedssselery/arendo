@@ -22,6 +22,13 @@ export class BookingsController {
     return this.bookings.list(request.auth.user, query);
   }
 
+  @Get(':id')
+  @UseGuards(AccessTokenGuard)
+  @Header('Cache-Control', 'no-store')
+  find(@Param() { id }: ResourceIdDto, @Req() request: { auth: AuthenticatedSession }) {
+    return this.bookings.find(id, request.auth.user);
+  }
+
   @Post()
   @RequireRoles('tenant')
   create(@Req() request: { auth: AuthenticatedSession }, @Body() input: CreateBookingDto) {
