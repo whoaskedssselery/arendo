@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { UserRow } from '../auth/auth.types';
 import { PublicCache } from '../cache/public-cache.service';
-import type { CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
+import type { BookingQueryDto, CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
 import { rethrowBookingError } from './bookings.errors';
 import { BookingsRepository, type BookingTransaction } from './bookings.repository';
 import { bookingResponse } from './bookings.types';
@@ -12,6 +12,10 @@ export class BookingsService {
     private readonly repository: BookingsRepository,
     private readonly cache: PublicCache,
   ) {}
+
+  async list(actor: UserRow, query: BookingQueryDto) {
+    return (await this.repository.list(actor, query)).map(bookingResponse);
+  }
 
   async create(tenantId: string, input: CreateBookingDto) {
     const start = new Date(input.startAt);

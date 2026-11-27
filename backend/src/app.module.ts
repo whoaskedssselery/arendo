@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { CategoriesModule } from './categories/categories.module';
 import { DatabaseModule } from './database/database.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { RoomsModule } from './rooms/rooms.module';
     CategoriesModule,
     RoomsModule,
     BookingsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

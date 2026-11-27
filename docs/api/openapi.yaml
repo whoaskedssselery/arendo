@@ -157,6 +157,18 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
+  /rooms/owned:
+    get:
+      tags: [Rooms]
+      summary: Собственные активные помещения владельца
+      description: Приватный список с пагинацией. Cache-Control no-store.
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Room' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Только для владельца }
   /rooms/{id}:
     parameters: [{ $ref: '#/components/parameters/Id' }]
     get:

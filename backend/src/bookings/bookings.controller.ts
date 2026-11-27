@@ -1,16 +1,26 @@
-import { Body, Controller, HttpCode, Param, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Query, Header, HttpCode, Param, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { AccessTokenGuard } from '../auth/access-token.guard';
 import type { AuthenticatedSession } from '../auth/auth.types';
 import { RequireRoles } from '../auth/require-roles.decorator';
 import { ResourceIdDto } from '../http/resource-id.dto';
 import { validationPipe } from '../http/validation.pipe';
-import { CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
+import { BookingQueryDto, CancelBookingDto, CompleteBookingDto, CreateBookingDto } from './bookings.dto';
 import { BookingsService } from './bookings.service';
 
 @Controller('bookings')
 @UsePipes(validationPipe('Invalid booking request.'))
 export class BookingsController {
   constructor(private readonly bookings: BookingsService) {}
+
+  @Get()
+  @UseGuards(AccessTokenGuard)
+  @Header('Cache-Control', 'no-store')
+  list(
+    @Req() request: { auth: AuthenticatedSession },
+    @Query() query: BookingQueryDto,
+  ) {
+    return this.bookings.list(request.auth.user, query);
+  }
 
   @Post()
   @RequireRoles('tenant')

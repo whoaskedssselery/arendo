@@ -1,0 +1,20 @@
+{
+  "coldRequests": [
+    "/api/v1/categories",
+    "/api/v1/rooms?page=1&pageSize=6",
+    "/api/v1/rooms/4",
+    "/api/v1/rooms/4/calendar?from=2026-10-31T21%3A00%3A00.000Z&to=2026-11-30T21%3A00%3A00.000Z"
+  ],
+  "warmRequests": [],
+  "room": "/rooms/4",
+  "firstVisit": 1,
+  "repeatVisit": 0,
+  "debouncedSearchRequests": 1,
+  "requests": [
+    "/api/v1/categories",
+    "/api/v1/rooms?page=1&pageSize=6",
+    "/api/v1/rooms/4",
+    "/api/v1/rooms/4/calendar?from=2026-10-31T21%3A00%3A00.000Z&to=2026-11-30T21%3A00%3A00.000Z",
+    "/api/v1/rooms?q=%D0%9B%D0%BE%D1%84%D1%82&page=1&pageSize=6"
+  ]
+}

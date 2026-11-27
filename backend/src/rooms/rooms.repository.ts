@@ -85,6 +85,16 @@ export class RoomsRepository {
     return rows[0];
   }
 
+  async listOwned(ownerId: string, page: number, pageSize: number) {
+    const { rows } = await this.database.pool.query<RoomRow>(
+      `SELECT ${roomColumns('r')}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
+       FROM rooms r JOIN v_room_rating rating ON rating.room_id = r.id
+       WHERE r.owner_id = $1 AND r.is_active ORDER BY r.id DESC LIMIT $2 OFFSET $3`,
+      [ownerId, pageSize, (page - 1) * pageSize],
+    );
+    return rows;
+  }
+
   async findPublicRoom(id: number) {
     const { rows } = await this.database.pool.query<RoomRow>(
       `SELECT ${roomColumns('r')}, rating.avg_rating, rating.reviews_count, ${roomPhotos('r.id')}
