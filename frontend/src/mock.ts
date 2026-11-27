@@ -1,6 +1,7 @@
 // Explicit demo adapter. Never used as a fallback for a failed API request.
-import { roomImages } from "./images";
+
 import { ApiError } from "./api";
+import { roomImages } from "./images";
 import type { Booking, Category, Room, Session, User } from "./types";
 export const categories: Category[] = [
   { id: 1, name: "Лофты", basePricePerHour: 1800 },
@@ -18,7 +19,7 @@ const names = [
   "Переговорная «Диалог»",
   "Студия «Линия»",
 ];
-let rooms: Room[] = names.map((title, i) => ({
+const rooms: Room[] = names.map((title, i) => ({
   id: i + 1,
   ownerId: 2,
   categoryId: (i % 3) + 1,
@@ -61,7 +62,7 @@ const users: User[] = [
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
 tomorrow.setHours(12, 0, 0, 0);
-let bookings: Booking[] = [
+const bookings: Booking[] = [
   {
     id: 1,
     roomId: 1,
@@ -112,7 +113,10 @@ export async function mockRequest(
   const q = url.searchParams;
   const method = options.method || "GET";
   const data = options.body ? JSON.parse(String(options.body)) : {};
-  const fail = (status: number, message: string): never => {
+  const fail: (status: number, message: string) => never = (
+    status,
+    message,
+  ) => {
     throw new ApiError(status, message);
   };
   if (p === "/categories") return categories;
@@ -120,20 +124,21 @@ export async function mockRequest(
     let list = rooms.filter(
       (r) =>
         (!q.get("q") ||
-          (r.title + " " + r.address)
+          `${r.title} ${r.address}`
             .toLowerCase()
-            .includes(q.get("q")!.toLowerCase())) &&
-        (!q.get("categoryId") || r.categoryId === +q.get("categoryId")!) &&
-        (!q.get("priceMin") || r.pricePerHour >= +q.get("priceMin")!) &&
-        (!q.get("priceMax") || r.pricePerHour <= +q.get("priceMax")!) &&
-        (!q.get("capacity") || r.capacity >= +q.get("capacity")!) &&
+            .includes(String(q.get("q")).toLowerCase())) &&
+        (!q.get("categoryId") ||
+          r.categoryId === +String(q.get("categoryId"))) &&
+        (!q.get("priceMin") || r.pricePerHour >= +String(q.get("priceMin"))) &&
+        (!q.get("priceMax") || r.pricePerHour <= +String(q.get("priceMax"))) &&
+        (!q.get("capacity") || r.capacity >= +String(q.get("capacity"))) &&
         (!q.get("from") ||
           !bookings.some(
             (b) =>
               b.roomId === r.id &&
               ["pending", "active"].includes(b.status) &&
-              b.startAt < q.get("to")! &&
-              b.endAt > q.get("from")!,
+              b.startAt < String(q.get("to")) &&
+              b.endAt > String(q.get("from")),
           )),
     );
     list = list.sort((a, b) =>
@@ -165,8 +170,8 @@ export async function mockRequest(
         (b) =>
           b.roomId === +p.split("/")[2] &&
           ["pending", "active"].includes(b.status) &&
-          b.startAt < q.get("to")! &&
-          b.endAt > q.get("from")!,
+          b.startAt < String(q.get("to")) &&
+          b.endAt > String(q.get("from")),
       )
       .map((b) => ({ kind: "booking", ...b }));
   if (p.endsWith("/reviews")) return [];
@@ -183,14 +188,14 @@ export async function mockRequest(
         status: "active",
       };
       passwords.set(data.email, data.password);
-      users.push(user!);
+      users.push(user);
     } else if (!user || data.password !== passwords.get(data.email))
       fail(401, "Неверный email или пароль.");
     if (user?.status === "banned") fail(403, "Аккаунт заблокирован.");
     return { user, accessToken: "demo", refreshToken: "demo" };
   }
   if (!session) fail(401, "Войдите в аккаунт.");
-  const user = session!.user;
+  const user = session.user;
   if (p === "/rooms/owned") {
     if (user.role !== "owner") fail(403, "Недостаточно прав.");
     const start = (+(q.get("page") || 1) - 1) * +(q.get("pageSize") || 20);
@@ -240,8 +245,8 @@ export async function mockRequest(
       tenantId: user.id,
       status: "pending",
       totalPrice: Math.min(
-        hours * room!.pricePerHour,
-        Math.ceil(hours / 24) * (room!.pricePerDay || Infinity),
+        hours * room.pricePerHour,
+        Math.ceil(hours / 24) * (room.pricePerDay || Infinity),
       ),
       isOverdue: false,
       history: [],
@@ -254,18 +259,18 @@ export async function mockRequest(
     if (!b) fail(404, "Аренда не найдена.");
     if (p.endsWith("cancel")) {
       if (
-        !["pending", "active"].includes(b!.status) ||
+        !["pending", "active"].includes(b.status) ||
         (user.role === "tenant" &&
-          (b!.tenantId !== user.id || b!.status !== "pending")) ||
-        (user.role === "owner" && b!.status !== "active")
+          (b.tenantId !== user.id || b.status !== "pending")) ||
+        (user.role === "owner" && b.status !== "active")
       )
         fail(409, "Отмена недоступна.");
-      b!.status = "cancelled";
+      b.status = "cancelled";
     } else {
       if (user.role === "tenant") fail(403, "Недостаточно прав.");
-      if (b!.status !== "active")
+      if (b.status !== "active")
         fail(409, "Завершить можно только активную аренду.");
-      b!.status = "completed";
+      b.status = "completed";
     }
     return b;
   }
@@ -316,7 +321,7 @@ export async function mockRequest(
     if (user.role !== "admin") fail(403, "Недостаточно прав.");
     const u = users.find((u) => u.id === +p.split("/")[3]);
     if (!u) fail(404, "Пользователь не найден.");
-    u!.status = data.status;
+    u.status = data.status;
     return u;
   }
   return fail(404, "Этот маршрут не поддерживается в деморежиме.");

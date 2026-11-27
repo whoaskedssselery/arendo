@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
 import { createRequire } from "node:module";
+import { expect, test } from "@playwright/test";
+
 const require = createRequire(import.meta.url);
 const api = "http://127.0.0.1:3000/api/v1";
 const local = (d: Date) =>
@@ -15,9 +16,9 @@ test("настоящий API: регистрация, создание, конф
   const suffix = Date.now();
   let account = 0;
   const register = async (role: string) => {
-    const res = await request.post(api + "/auth/register", {
+    const res = await request.post(`${api}/auth/register`, {
       data: {
-        fullName: "Тест " + role,
+        fullName: `Тест ${role}`,
         email: `e2e-${role}-${suffix}-${++account}@arendo.test`,
         password: "Arendo123!",
         role,
@@ -31,11 +32,11 @@ test("настоящий API: регистрация, создание, конф
     owner = await register("owner");
   const headers = { Authorization: `Bearer ${tenant.accessToken}` };
   const ownerHeaders = { Authorization: `Bearer ${owner.accessToken}` };
-  const created = await request.post(api + "/rooms", {
+  const created = await request.post(`${api}/rooms`, {
     headers: ownerHeaders,
     data: {
       categoryId: 1,
-      title: "E2E пространство " + suffix,
+      title: `E2E пространство ${suffix}`,
       address: "Москва, Тестовая, 1",
       areaM2: 50,
       capacity: 10,
@@ -65,12 +66,15 @@ test("настоящий API: регистрация, создание, конф
     path: "../docs/frontend/screenshots/bookings-live.png",
     fullPage: true,
   });
-  const all = await (await request.get(api + "/bookings", { headers })).json();
-  const booking = all.find((b: any) => b.roomId === room.id);
+  const all = await (await request.get(`${api}/bookings`, { headers })).json();
+  const booking = all.find(
+    (b: { id: number; roomId: number; totalPrice: number }) =>
+      b.roomId === room.id,
+  );
   expect(booking.totalPrice).toBe(2000);
   expect(
     (
-      await request.post(api + "/bookings", {
+      await request.post(`${api}/bookings`, {
         headers,
         data: {
           roomId: room.id,
@@ -80,7 +84,7 @@ test("настоящий API: регистрация, создание, конф
       })
     ).status(),
   ).toBe(409);
-  const foreign = await request.get(api + "/bookings", {
+  const foreign = await request.get(`${api}/bookings`, {
     headers: { Authorization: `Bearer ${other.accessToken}` },
   });
   expect(await foreign.json()).toEqual([]);
@@ -92,7 +96,7 @@ test("настоящий API: регистрация, создание, конф
       })
     ).status(),
   ).toBe(403);
-  expect((await request.get(api + "/admin/users", { headers })).status()).toBe(
+  expect((await request.get(`${api}/admin/users`, { headers })).status()).toBe(
     403,
   );
   const busy = await (
@@ -110,7 +114,7 @@ test("настоящий API: регистрация, создание, конф
     )
   ).json();
   expect(free).toHaveLength(0);
-  expect((await request.get(api + "/bookings")).status()).toBe(401);
+  expect((await request.get(`${api}/bookings`)).status()).toBe(401);
   // Only the explicitly named disposable test DB may be manipulated for past-time fixtures.
   const url = process.env.TEST_DATABASE_URL;
   if (!url || !new URL(url).pathname.endsWith("_test"))
@@ -179,7 +183,7 @@ test("настоящий API: Query cache, debounce, AbortSignal и скрины
   ).toBeVisible();
   await expect(page.locator(".calendar button").first()).toBeVisible();
   const coldRequests = [...calls];
-  const before = calls.filter((p) => p === "/api/v1" + href).length;
+  const before = calls.filter((p) => p === `/api/v1${href}`).length;
   await page.screenshot({
     path: "../docs/frontend/screenshots/room-live.png",
     fullPage: true,
@@ -189,7 +193,7 @@ test("настоящий API: Query cache, debounce, AbortSignal и скрины
   await expect(
     page.getByRole("heading", { name: "Календарь занятости" }),
   ).toBeVisible();
-  expect(calls.filter((p) => p === "/api/v1" + href).length).toBe(before);
+  expect(calls.filter((p) => p === `/api/v1${href}`).length).toBe(before);
   const warmRequests = calls.slice(coldRequests.length);
   expect(warmRequests).toEqual([]);
   // Cached categories/catalog revisits generate zero additional HTTP requests within staleTime.
@@ -214,7 +218,7 @@ test("настоящий API: Query cache, debounce, AbortSignal и скрины
         room: href,
         firstVisit: before,
         repeatVisit:
-          calls.filter((p) => p === "/api/v1" + href).length - before,
+          calls.filter((p) => p === `/api/v1${href}`).length - before,
         debouncedSearchRequests: 1,
         requests: calls,
       },
@@ -231,7 +235,7 @@ test("API: обновление access-токена и администриро�
   if (!url || !new URL(url).pathname.endsWith("_test"))
     throw new Error("Use a disposable *_test DB");
   const register = async (email: string) => {
-    const r = await request.post(api + "/auth/register", {
+    const r = await request.post(`${api}/auth/register`, {
       data: {
         fullName: "Админ E2E",
         email,
@@ -272,7 +276,7 @@ test("API: обновление access-токена и администриро�
   expect(refresh).toBe(1);
   // API permissions use current DB role; use rotated session from browser.
   const current = await page.evaluate(() =>
-    JSON.parse(sessionStorage.getItem("arendo.session")!),
+    JSON.parse(sessionStorage.getItem("arendo.session") ?? "null"),
   );
   const headers = { Authorization: `Bearer ${current.accessToken}` };
   expect(
@@ -293,7 +297,7 @@ test("API: обновление access-токена и администриро�
   ).toBe(200);
   expect(
     (
-      await request.get(api + "/auth/me", {
+      await request.get(`${api}/auth/me`, {
         headers: { Authorization: `Bearer ${target.accessToken}` },
       })
     ).status(),

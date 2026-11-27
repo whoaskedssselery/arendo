@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { type FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { demo, post, setSession } from "../api";
 import { client } from "../query";
-import { post, demo, setSession } from "../api";
 import type { Session } from "../types";
 import { ErrorBox, Field } from "../ui";
 export default function Auth({ register = false }: { register?: boolean }) {
@@ -86,7 +86,7 @@ export default function Auth({ register = false }: { register?: boolean }) {
           autoComplete={register ? "new-password" : "current-password"}
         />
         <ErrorBox error={validation ? new Error(validation) : mutation.error} />
-        <button disabled={mutation.isPending}>
+        <button type="submit" disabled={mutation.isPending}>
           {mutation.isPending
             ? "Подождите…"
             : register

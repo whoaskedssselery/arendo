@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
 test.skip(
   !!process.env.LIVE_API,
   "Галерея макетов снимается в явно включённом деморежиме",
@@ -18,7 +19,7 @@ test("галерея экранов для согласования с тимл�
   }
   async function login(role: string) {
     await page.goto("/login");
-    await page.getByLabel("Email", { exact: true }).fill(role + "@arendo.test");
+    await page.getByLabel("Email", { exact: true }).fill(`${role}@arendo.test`);
     await page.getByLabel("Пароль", { exact: true }).fill("Arendo123!");
     await page.getByRole("button", { name: "Войти", exact: true }).click();
     await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();

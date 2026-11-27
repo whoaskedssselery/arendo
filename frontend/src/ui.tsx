@@ -1,10 +1,10 @@
-import React from "react";
+import type React from "react";
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { client, roomQuery } from "./query";
 import { getSession } from "./api";
-import type { Room, Role } from "./types";
 import { roomImages } from "./images";
+import { client, roomQuery } from "./query";
+import type { Role, Room } from "./types";
 export const money = (n: number) =>
   new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -22,6 +22,11 @@ export const labels = {
   completed: "Завершено",
   cancelled: "Отменено",
 };
+export function useRequiredSession() {
+  const session = useSession();
+  if (!session) throw new Error("Требуется вход в аккаунт.");
+  return session;
+}
 export function useSession() {
   const [s, update] = useState(getSession());
   useEffect(() => {
@@ -55,7 +60,9 @@ export function State({
     return (
       <div className="panel">
         <ErrorBox error={query.error} />
-        <button onClick={() => query.refetch()}>Повторить</button>
+        <button type="button" onClick={() => query.refetch()}>
+          Повторить
+        </button>
       </div>
     );
   return children;
@@ -134,11 +141,15 @@ export function Pager({
 }) {
   return (
     <div className="pagination">
-      <button disabled={page === 1} onClick={() => setPage(page - 1)}>
+      <button
+        type="button"
+        disabled={page === 1}
+        onClick={() => setPage(page - 1)}
+      >
         Назад
       </button>
       <span>Страница {page}</span>
-      <button disabled={!next} onClick={() => setPage(page + 1)}>
+      <button type="button" disabled={!next} onClick={() => setPage(page + 1)}>
         Далее
       </button>
     </div>
@@ -158,17 +169,17 @@ export function RoomPhoto({
   lazy?: boolean;
   children?: React.ReactNode;
 }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [url]);
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const failed = url !== undefined && failedUrl === url;
   const placeholder = !url || failed;
   return (
-    <div className={className + " room-photo"}>
+    <div className={`${className} room-photo`}>
       <img
         src={placeholder ? roomImages[0] : url}
         alt={placeholder ? "Иллюстрация пространства" : title}
         loading={lazy ? "lazy" : "eager"}
         onError={() => {
-          if (!failed) setFailed(true);
+          if (!failed) setFailedUrl(url);
         }}
       />
       {placeholder && (

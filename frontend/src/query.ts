@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { request, ApiError } from "./api";
+import { ApiError, request } from "./api";
 import type { Category, Room } from "./types";
 export const client = new QueryClient({
   defaultOptions: {

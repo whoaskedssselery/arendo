@@ -1,16 +1,16 @@
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryString, request } from "../api";
 import { client } from "../query";
-import { request, queryString } from "../api";
 import type { User } from "../types";
-import { useSession, ErrorBox, State, Pager } from "../ui";
+import { ErrorBox, Pager, State, useRequiredSession } from "../ui";
 export default function Admin() {
-  const s = useSession()!;
+  const s = useRequiredSession();
   const [page, setPage] = useState(1);
   const data = useQuery({
     queryKey: ["users", page],
     queryFn: ({ signal }) =>
-      request<User[]>("/admin/users?" + queryString({ page, pageSize: 10 }), {
+      request<User[]>(`/admin/users?${queryString({ page, pageSize: 10 })}`, {
         signal,
       }),
   });
@@ -51,6 +51,7 @@ export default function Admin() {
                   <td>{u.status === "active" ? "Активен" : "Заблокирован"}</td>
                   <td>
                     <button
+                      type="button"
                       disabled={mutation.isPending || u.id === s.user.id}
                       onClick={() => {
                         if (confirm("Изменить доступ пользователя?"))

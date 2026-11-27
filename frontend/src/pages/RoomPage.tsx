@@ -1,17 +1,17 @@
-import { useState, type FormEvent } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { roomQuery, invalidateBookings } from "../query";
-import { request, post, queryString } from "../api";
+import { post, queryString, request } from "../api";
+import { invalidateBookings, roomQuery } from "../query";
 import type { Booking, Room, Slot } from "../types";
 import {
-  RoomPhoto,
-  money,
   date,
-  useSession,
   ErrorBox,
-  State,
   Field,
+  money,
+  RoomPhoto,
+  State,
+  useSession,
 } from "../ui";
 export default function RoomPage() {
   const id = Number(useParams().id);
@@ -32,7 +32,7 @@ function RoomDetail({ room: r }: { room: Room }) {
   const cal = useQuery({
     queryKey: ["calendar", r.id, from, to],
     queryFn: ({ signal }) =>
-      request<Slot[]>(`/rooms/${r.id}/calendar?` + queryString({ from, to }), {
+      request<Slot[]>(`/rooms/${r.id}/calendar?${queryString({ from, to })}`, {
         signal,
       }),
     staleTime: 15000,
@@ -113,6 +113,7 @@ function RoomDetail({ room: r }: { room: Room }) {
               <h2>Календарь занятости</h2>
               <div className="inline">
                 <button
+                  type="button"
                   aria-label="Предыдущий месяц"
                   onClick={() =>
                     setMonth(
@@ -129,6 +130,7 @@ function RoomDetail({ room: r }: { room: Room }) {
                   })}
                 </b>
                 <button
+                  type="button"
                   aria-label="Следующий месяц"
                   onClick={() =>
                     setMonth(
@@ -152,8 +154,11 @@ function RoomDetail({ room: r }: { room: Room }) {
                     {d}
                   </span>
                 ))}
-                {Array.from({ length: (month.getDay() + 6) % 7 }, (_, i) => (
-                  <span key={"blank" + i} />
+                {Array.from(
+                  { length: (month.getDay() + 6) % 7 },
+                  (_, i) => `blank-${i}`,
+                ).map((id) => (
+                  <span key={id} />
                 ))}
                 {Array.from(
                   {
@@ -181,8 +186,9 @@ function RoomDetail({ room: r }: { room: Room }) {
                       ) || [];
                     return (
                       <button
+                        type="button"
                         className={busy.length ? "busy" : ""}
-                        key={i}
+                        key={day.getDate()}
                         title={
                           busy
                             .map((b) => `${date(b.startAt)} — ${date(b.endAt)}`)
@@ -191,8 +197,8 @@ function RoomDetail({ room: r }: { room: Room }) {
                         onClick={() => {
                           const local = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
                           setPeriod({
-                            startAt: local + "T10:00",
-                            endAt: local + "T11:00",
+                            startAt: `${local}T10:00`,
+                            endAt: `${local}T11:00`,
                           });
                         }}
                       >
@@ -208,8 +214,8 @@ function RoomDetail({ room: r }: { room: Room }) {
               </p>
               {cal.data?.length ? (
                 <ul className="slots">
-                  {cal.data.map((b, i) => (
-                    <li key={i}>
+                  {cal.data.map((b) => (
+                    <li key={`${b.kind}-${b.startAt}`}>
                       {date(b.startAt)} — {date(b.endAt)} ·{" "}
                       {b.kind === "block" ? "Закрыто" : "Занято"}
                     </li>
@@ -250,7 +256,7 @@ function RoomDetail({ room: r }: { room: Room }) {
             )}
             <ErrorBox error={error || mutation.error} />
             {!s || s.user.role === "tenant" ? (
-              <button disabled={mutation.isPending}>
+              <button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending
                   ? "Бронируем…"
                   : s

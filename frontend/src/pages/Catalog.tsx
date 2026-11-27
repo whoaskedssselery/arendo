@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { categoriesQuery } from "../query";
-import { request, queryString } from "../api";
-import type { Room, Page } from "../types";
+import { type FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { queryString, request } from "../api";
 import { roomImages } from "../images";
-import { ErrorBox, State, Field, RoomCard } from "../ui";
+import { categoriesQuery } from "../query";
+import type { Page, Room } from "../types";
+import { ErrorBox, Field, RoomCard, State } from "../ui";
 export default function Catalog() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("q") || "");
@@ -35,7 +35,7 @@ export default function Catalog() {
     queryKey: ["rooms", values],
     queryFn: ({ signal }) =>
       request<Page<Room>>(
-        "/rooms?" + queryString({ ...values, page, pageSize: 6 }),
+        `/rooms?${queryString({ ...values, page, pageSize: 6 })}`,
         { signal },
       ),
     staleTime: 45000,
@@ -140,6 +140,7 @@ export default function Catalog() {
               <h3>Ничего не найдено</h3>
               <p>Попробуйте изменить фильтры.</p>
               <button
+                type="button"
                 onClick={() => {
                   setSearch("");
                   setParams({});
@@ -152,6 +153,7 @@ export default function Catalog() {
         </State>
         <div className="pagination">
           <button
+            type="button"
             disabled={page === 1}
             onClick={() => set("page", String(page - 1))}
           >
@@ -159,6 +161,7 @@ export default function Catalog() {
           </button>
           <span>Страница {page}</span>
           <button
+            type="button"
             disabled={!data.data || page * 6 >= data.data.total}
             onClick={() => set("page", String(page + 1))}
           >
@@ -198,7 +201,7 @@ function AvailabilityFilter({
       <form className="period-filter" onSubmit={submit}>
         <Field label="Свободно с" name="from" type="datetime-local" required />
         <Field label="Свободно до" name="to" type="datetime-local" required />
-        <button>Проверить доступность</button>
+        <button type="submit">Проверить доступность</button>
         {params.has("from") && (
           <button
             type="button"

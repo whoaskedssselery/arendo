@@ -1,16 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { type FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { client, categoriesQuery } from "../query";
-import { request, post, queryString } from "../api";
+import { post, queryString, request } from "../api";
+import { categoriesQuery, client } from "../query";
 import type { Room } from "../types";
-import { ErrorBox, State, Field, RoomCard, Pager } from "../ui";
+import { ErrorBox, Field, Pager, RoomCard, State } from "../ui";
 export default function Owner() {
   const [page, setPage] = useState(1);
   const rooms = useQuery({
     queryKey: ["rooms", "owner", page],
     queryFn: ({ signal }) =>
-      request<Room[]>("/rooms/owned?" + queryString({ page, pageSize: 6 }), {
+      request<Room[]>(`/rooms/owned?${queryString({ page, pageSize: 6 })}`, {
         signal,
       }),
     staleTime: 45000,
@@ -93,7 +93,10 @@ export default function Owner() {
             required
           />
           <Field label="Описание" name="description" />
-          <button disabled={mutation.isPending || !categories.data?.length}>
+          <button
+            type="submit"
+            disabled={mutation.isPending || !categories.data?.length}
+          >
             Добавить
           </button>
           <ErrorBox error={mutation.error} />

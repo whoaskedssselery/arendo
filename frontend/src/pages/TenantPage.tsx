@@ -1,5 +1,5 @@
-import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
 import { request } from "../api";
 import type { Tenant } from "../types";
 import { money, State } from "../ui";

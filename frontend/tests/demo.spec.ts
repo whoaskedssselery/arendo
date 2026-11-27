@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
-async function login(page: any, role = "tenant") {
+import { expect, type Page, test } from "@playwright/test";
+
+async function login(page: Page, role = "tenant") {
   await page.goto("/login");
-  await page.getByLabel("Email", { exact: true }).fill(role + "@arendo.test");
+  await page.getByLabel("Email", { exact: true }).fill(`${role}@arendo.test`);
   await page.getByLabel("Пароль", { exact: true }).fill("Arendo123!");
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();

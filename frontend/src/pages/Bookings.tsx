@@ -1,19 +1,27 @@
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { roomQuery, invalidateBookings } from "../query";
-import { request, post, queryString } from "../api";
+import { post, queryString, request } from "../api";
+import { invalidateBookings, roomQuery } from "../query";
 import type { Booking } from "../types";
-import { money, date, labels, useSession, ErrorBox, State, Pager } from "../ui";
+import {
+  date,
+  ErrorBox,
+  labels,
+  money,
+  Pager,
+  State,
+  useRequiredSession,
+} from "../ui";
 export default function Bookings() {
-  const s = useSession()!;
+  const s = useRequiredSession();
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const data = useQuery({
     queryKey: ["bookings", s.user.id, status, page],
     queryFn: ({ signal }) =>
       request<Booking[]>(
-        "/bookings?" + queryString({ status, page, pageSize: 10 }),
+        `/bookings?${queryString({ status, page, pageSize: 10 })}`,
         { signal },
       ),
     staleTime: 15000,
@@ -67,7 +75,7 @@ export default function Bookings() {
   );
 }
 function BookingCard({ b }: { b: Booking }) {
-  const s = useSession()!;
+  const s = useRequiredSession();
   const room = useQuery(roomQuery(b.roomId));
   const action = useMutation({
     mutationFn: (type: string) => post(`/bookings/${b.id}/${type}`),
@@ -76,7 +84,7 @@ function BookingCard({ b }: { b: Booking }) {
   return (
     <article className="panel booking-row" data-booking-id={b.id}>
       <div>
-        <span className={"badge " + b.status}>{labels[b.status]}</span>
+        <span className={`badge ${b.status}`}>{labels[b.status]}</span>
         {b.isOverdue && <span className="error">Просрочена</span>}
         <h2>
           <Link to={`/rooms/${b.roomId}`}>
@@ -99,6 +107,7 @@ function BookingCard({ b }: { b: Booking }) {
         {((b.status === "pending" && s.user.role !== "owner") ||
           (b.status === "active" && s.user.role !== "tenant")) && (
           <button
+            type="button"
             className="secondary"
             disabled={action.isPending}
             onClick={() => {
@@ -110,6 +119,7 @@ function BookingCard({ b }: { b: Booking }) {
         )}
         {b.status === "active" && s.user.role !== "tenant" && (
           <button
+            type="button"
             disabled={action.isPending}
             onClick={() => {
               if (window.confirm("Подтвердить приём помещения?"))

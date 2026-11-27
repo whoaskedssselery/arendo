@@ -9,7 +9,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "playwright test",
     "report:network": "node scripts/network-report.mjs",
-    "format": "prettier --write src tests scripts *.ts"
+    "format": "biome check --write .",
+    "lint": "biome check ."
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
@@ -18,6 +19,7 @@
     "react-router-dom": "^7.9.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.9",
     "@playwright/test": "^1.56.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
