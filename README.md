@@ -26,6 +26,12 @@ docker compose up -d --build --wait
 Сайт: http://localhost:8080 (порт задаёт `WEB_PORT`). Данные хранятся в томах Docker и переживают перезапуск.
 `DEMO_PASSWORD` задаёт пароль демонстрационным аккаунтам `admin@arendo.test`, `owner1@arendo.test`, `anna@arendo.test`.
 Администратора с настоящим адресом создают переменные `ADMIN_EMAIL` и `ADMIN_PASSWORD`.
+Расширенный набор помещений (22 штуки, часть с отзывами) добавляется одной командой, повторный запуск ничего не дублирует. Каталог обновится в течение минуты.
+
+```bash
+docker compose exec db psql -U postgres -d arendo -v ON_ERROR_STOP=1 -f /sql/05_demo_data.sql
+```
+
 Копии БД делаются раз в сутки в том `backups` и хранятся 14 дней.
 
 ## Структура
